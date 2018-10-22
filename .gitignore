@@ -1,0 +1,4 @@
+bin/
+pkg/
+coverprofile.out
+gobackgammon
