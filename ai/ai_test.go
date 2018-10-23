@@ -56,11 +56,11 @@ func TestPlayGame(t *testing.T) {
 	examples := [...]example{
 		example{
 			1337,
-			White,
+			Red,
 			1,
-			"Score{Goal:0,W:1,r:0,Crawford on,inactive}",
-			52,
-			"{W to play    3 after playing  333; !dbl; 1:r 2: 3: 4: 5: 6: 7: 8: 9: 10: 11: 12: 13: 14: 15: 16: 17: 18: 19: 20: 21: 22: 23: 24:, 15 W off, 14 r off, Score{Goal:0,W:1,r:0,Crawford on,inactive}}",
+			"Score{Goal:0,W:0,r:1,Crawford on,inactive}",
+			43,
+			"{r after playing 4444; !dbl; 1: 2: 3: 4: 5: 6: 7: 8: 9: 10: 11: 12: 13: 14: 15: 16: 17: 18: 19:WWWWW 20: 21: 22:WW 23: 24:, 8 W off, 15 r off, Score{Goal:0,W:0,r:1,Crawford on,inactive}}",
 			playerConservative,
 			func(state interface{}, b *brd.Board) {
 				if iv := b.Invalidity(brd.IgnoreRollValidity); iv != "" {
@@ -77,8 +77,8 @@ func TestPlayGame(t *testing.T) {
 			Red,
 			1,
 			"Score{Goal:0,W:0,r:1,Crawford on,inactive}",
-			50,
-			"{r after playing   51; !dbl; 1: 2: 3: 4: 5: 6: 7: 8: 9: 10: 11: 12: 13: 14: 15: 16: 17: 18: 19: 20: 21: 22: 23: 24:WWWWWWWWW, 6 W off, 15 r off, Score{Goal:0,W:0,r:1,Crawford on,inactive}}",
+			48,
+			"{r after playing   52; !dbl; 1: 2: 3: 4: 5: 6: 7: 8: 9: 10: 11: 12: 13: 14: 15: 16: 17: 18: 19: 20: 21: 22: 23: 24:WWWW, 11 W off, 15 r off, Score{Goal:0,W:0,r:1,Crawford on,inactive}}",
 			playerConservative,
 			func(state interface{}, b *brd.Board) {
 				if iv := b.Invalidity(brd.IgnoreRollValidity); iv != "" {
@@ -212,6 +212,20 @@ func TestPlayerRacer(t *testing.T) {
 		Choice      string
 	}
 	examples := [...]example{
+		example{
+			func(b *brd.Board) {
+				b.Roller = Red
+				b.Roll = brd.Roll{5, 1}
+				b.Pips = brd.Points28{}
+				b.Pips[1].Reset(2, Red)
+				b.Pips[2].Reset(5, Red)
+				b.Pips[3].Reset(4, Red)
+				b.Pips[6].Reset(4, Red)
+				b.Pips[24].Reset(6, White)
+				b.Pips[brd.BorneOffWhitePip].Reset(9, White)
+			},
+			"{r after playing   51; !dbl; 1:rr 2:rrrrr 3:rrrr 4: 5: 6:rrr 7: 8: 9: 10: 11: 12: 13: 14: 15: 16: 17: 18: 19: 20: 21: 22: 23: 24:WWWWWW, 9 W off, 1 r off}"},
+
 		example{
 			func(b *brd.Board) {
 			},

@@ -43,6 +43,23 @@ func PlayerRacer(choices []brd.Board) int {
 			return
 		})
 	nextRound = maximizer(
+		"maxMyCheckersBorneOff",
+		nextRound,
+		func(b *brd.Board) (result int64) {
+			pip := brd.BorneOffRedPip
+			if b.Roller == brd.White {
+				pip = brd.BorneOffWhitePip
+			}
+			for _, c := range b.Pips[pip] {
+				if c != brd.NoChecker {
+					result++
+				} else {
+					break
+				}
+			}
+			return
+		})
+	nextRound = maximizer(
 		"maxMyCheckersAtHome",
 		nextRound,
 		func(b *brd.Board) int64 {

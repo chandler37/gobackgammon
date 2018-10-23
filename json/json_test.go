@@ -64,6 +64,13 @@ func TestSer(t *testing.T) {
 			},
 			`{"r":"41","p":"r","p1":"W2","p6":"r3","p8":"r3","p12":"W5","p13":"r5","p17":"W3","p19":"W5","p24":"r2","p25":"r","p27":"r","s":{"w":1,"n":1,"a":1}}`,
 		},
+		example{
+			373737,
+			func(b *brd.Board) {
+				b.Stakes = 4
+			},
+			`{"r":"41","st":2,"wd":1,"rd":1,"p":"r","p1":"W2","p6":"r5","p8":"r3","p12":"W5","p13":"r5","p17":"W3","p19":"W5","p24":"r2"}`,
+		},
 	}
 	for _, ex := range examples {
 		rand.Seed(ex.Seed)
