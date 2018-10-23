@@ -8,7 +8,7 @@ import (
 // A made point is a Point with two or more Checkers of the same color on
 // it.
 func (p *Point) MadeBy(player Checker) bool {
-	return (*p)[0] == player && (*p)[1] == player
+	return p[0] == player && p[1] == player
 }
 
 func (p Point) Equals(q Point) bool {
@@ -35,9 +35,9 @@ func (p Point) String() string {
 func (p *Point) Reset(n int, checker Checker) {
 	for i, _ := range *p {
 		if i < n {
-			(*p)[i] = checker
+			p[i] = checker
 		} else {
-			(*p)[i] = NoChecker
+			p[i] = NoChecker
 		}
 	}
 }
@@ -48,7 +48,7 @@ func (p *Point) Add(checker Checker) {
 			panic(fmt.Sprintf("bad point is %v", *p))
 		}
 		if v == NoChecker {
-			(*p)[i] = checker
+			p[i] = checker
 			return
 		}
 	}
@@ -66,5 +66,5 @@ func (p *Point) Subtract() {
 	if index < 0 {
 		panic(fmt.Sprintf("No checkers to remove: %v", *p))
 	}
-	(*p)[index] = NoChecker
+	p[index] = NoChecker
 }

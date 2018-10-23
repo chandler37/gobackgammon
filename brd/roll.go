@@ -74,19 +74,19 @@ func (r *Roll) New(toBeCleared *Roll) {
 	}
 
 	x := rand.Intn(6 * 6)
-	(*r)[0] = Die((x % 6) + 1)
-	(*r)[1] = Die((x / 6) + 1)
-	if (*r)[0] < (*r)[1] {
+	r[0] = Die((x % 6) + 1)
+	r[1] = Die((x / 6) + 1)
+	if r[0] < r[1] {
 		// Testing is easier if we treat <5 6> and <6 5> identically. We might
 		// also at some point start precomputing good moves and this will
 		// improve that cache's hit rate.
-		(*r)[0], (*r)[1] = (*r)[1], (*r)[0]
+		r[0], r[1] = r[1], r[0]
 	}
-	(*r)[2] = ZeroDie
-	(*r)[3] = ZeroDie
-	if (*r)[0] == (*r)[1] {
-		(*r)[2] = (*r)[0]
-		(*r)[3] = (*r)[0]
+	r[2] = ZeroDie
+	r[3] = ZeroDie
+	if r[0] == r[1] {
+		r[2] = r[0]
+		r[3] = r[0]
 	}
 }
 
