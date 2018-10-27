@@ -9,7 +9,7 @@ import (
 // Returns a brd.Chooser. Until it's racing, it really, really hates open
 // blots, even ones that are unhittable. (A blot is a point containing only one
 // Checker.) TODO(chandler37): make it care less about unhittable ones but it
-// should still care because those "unhittable" blots may make it harded to hit
+// should still care because those "unhittable" blots may make it harder to hit
 // our opponent later.
 //
 // It detects if it's a race and plays differently then, delegating to
@@ -79,11 +79,11 @@ func playerConservative(choices []brd.Board) int {
 			return int64(b.PipCount(b.Roller.OtherColor()))
 		})
 	/*
-	        TODO(chandler37): if maxMyBlockedPoints is more important than maxPrimeSize it affects the following:
-			White goes first.
-			{W to play   41; !dbl; 1:WW 2: 3: 4: 5: 6:rrrrr 7: 8:rrr 9: 10: 11: 12:WWWWW 13:rrrrr 14: 15: 16: 17:WWW 18: 19:WWWWW 20: 21: 22: 23: 24:rr}
-			{r to play 3333; !dbl; 1:WW 2: 3: 4: 5: 6:rrrrr 7: 8:rrr 9: 10: 11: 12:WWWW 13:rrrrr 14: 15: 16: 17:WWWW 18: 19:WWWWW 20: 21: 22: 23: 24:rr}
-		    What is the best move? making a 3-prime at 6,7,8? Or blocking more points?
+	TODO(chandler37): if maxMyBlockedPoints is more important than maxPrimeSize it affects the following:
+	White goes first.
+	{W to play   41; !dbl; 1:WW 2: 3: 4: 5: 6:rrrrr 7: 8:rrr 9: 10: 11: 12:WWWWW 13:rrrrr 14: 15: 16: 17:WWW 18: 19:WWWWW 20: 21: 22: 23: 24:rr}
+	{r to play 3333; !dbl; 1:WW 2: 3: 4: 5: 6:rrrrr 7: 8:rrr 9: 10: 11: 12:WWWW 13:rrrrr 14: 15: 16: 17:WWWW 18: 19:WWWWW 20: 21: 22: 23: 24:rr}
+	What is the best move? making a 3-prime at 6,7,8? Or blocking more points?
 	*/
 	nextRound = maximizer(
 		"maxMyBlockedPoints",

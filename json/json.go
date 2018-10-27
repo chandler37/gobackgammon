@@ -2,8 +2,12 @@
 package json
 
 import (
+	"bytes"
+	"compress/flate"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"strconv"
 
 	"github.com/chandler37/gobackgammon/brd"
@@ -147,6 +151,45 @@ func Deserialize(s string) (*brd.Board, error) {
 		return nil, fmt.Errorf("invalid board: %v", iv)
 	}
 	return b, nil
+}
+
+// Given the result of Serialize(), returns a URL-safe base64 representation of
+// a flate-compressed form of the result (using a custom flate
+// dictionary). (See the `compress/flate` library.)
+func Compress(boardSerialization string) string {
+	return helpCompress(boardSerialization, flate.BestCompression)
+}
+
+func Decompress(compressedUrlSafeBase64Board string) (string, error) {
+	rawToken, err := base64.RawURLEncoding.DecodeString(compressedUrlSafeBase64Board)
+	if err != nil {
+		return "", fmt.Errorf("Bad base64: %v", err)
+	}
+	zr := flate.NewReaderDict(bytes.NewReader(rawToken), compressionDict)
+	defer zr.Close()
+	someBytes, err := ioutil.ReadAll(zr)
+	if err != nil {
+		return "", err
+	}
+	return string(someBytes), nil
+}
+
+var compressionDict = []byte(`{"r":"6666","wd":1,"rd":1,"p":"W","p0":"W","p1":"W","p2":"W","p3":"W","p4":"W","p5":"W","p6":"W","p7":"W","p8":"W","p9":"W","p10":"W","p11":"W","p12":"W","p13":"W","p17":"r","p18":"r","p19":"r","p20":"r","p21":"r","p22":"r","p23":"r","p24":"r","p25":"r","p26":"W","p27":"r6","s":{"g":5,"r":4,"n":1}}`)
+
+// We could also try `{"r":"41","p":"r","p1":"W2","p6":"r3","p8":"r3","p12":"W5","p13":"r5","p17":"W3","p19":"W5","p24":"r2","p25":"r","p27":"r","s":{"w":1,"n":1,"a":1}}`
+
+func helpCompress(serialization string, compressionLevel int) string {
+	var b bytes.Buffer
+	compressor, err := flate.NewWriterDict(&b, compressionLevel, compressionDict)
+	if err != nil {
+		panic(err) // only happens with invalid compression level
+	}
+	_, err = compressor.Write([]byte(serialization))
+	if err != nil {
+		panic(err)
+	}
+	compressor.Close()
+	return base64.RawURLEncoding.EncodeToString(b.Bytes())
 }
 
 // Example: {"ru":"3","ro":"1","st":6,"wd":0,"rd":1,"p":"W","p0":"W","p1":"W15","s":{"g":3,"w":1,"r":0,"c":0,"a":0}}
