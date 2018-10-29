@@ -18,8 +18,8 @@ func BenchmarkPlayGameTimesTen(b *testing.B) {
 			logger := func(_ interface{}, b *Board) {
 				numBoards++
 			}
-			chooser := func(s []Board) int {
-				return rand.Intn(len(s))
+			chooser := func(s []*Board) []AnalyzedBoard {
+				return []AnalyzedBoard{AnalyzedBoard{Board: s[rand.Intn(len(s))]}}
 			}
 			victor, stakes, _ := New(false).PlayGame(struct{}{}, chooser, logger, nil, nil)
 			if victor == White {
@@ -185,7 +185,7 @@ func TestNewAndStringerAndInvalidity(t *testing.T) {
 	}
 }
 
-func prettyCandidates(candidates []Board) string {
+func prettyCandidates(candidates []*Board) string {
 	parts := make([]string, 0, len(candidates))
 	for _, c := range candidates {
 		parts = append(parts, c.String())
@@ -1110,8 +1110,9 @@ func TestTakeTurnDoubling(t *testing.T) {
 	if len(next) != 1 {
 		t.Fatalf("TestLegalContinuations has this guy... %v", next)
 	}
+	startingBoard := *next[0]
 	{
-		next0 := next[0]
+		next0 := startingBoard
 		victor, stakes, _ := next0.TakeTurn(
 			func(_ *Board) bool {
 				return true
@@ -1124,7 +1125,7 @@ func TestTakeTurnDoubling(t *testing.T) {
 		}
 	}
 	{
-		next0 := next[0]
+		next0 := startingBoard
 		victor, stakes, _ := next0.TakeTurn(
 			func(_ *Board) bool {
 				return true
@@ -1141,7 +1142,7 @@ func TestTakeTurnDoubling(t *testing.T) {
 	}
 	{
 		rand.Seed(37)
-		next0 := next[0]
+		next0 := startingBoard
 		victor, stakes, _ := next0.TakeTurn(
 			func(_ *Board) bool {
 				return false
@@ -1164,7 +1165,7 @@ func TestPlayGame(t *testing.T) {
 		stakes       int
 		numBoard     int
 		lastLog      string
-		chooser      func([]Board) int
+		chooser      Chooser
 		logger       func(interface{}, *Board)
 		offerDouble  func(*Board) bool
 		acceptDouble func(*Board) bool
@@ -1176,8 +1177,8 @@ func TestPlayGame(t *testing.T) {
 			3,
 			64,
 			"{W after playing   51; !dbl; 1:rrrrrrrrrrrr 2:r 3: 4: 5: 6: 7: 8: 9: 10: 11: 12: 13:r 14: 15: 16: 17: 18: 19: 20:r 21: 22: 23: 24:, 15 W off, Score{Goal:0,W:3,r:0,Crawford on,inactive}}",
-			func(s []Board) int {
-				return 0
+			func(s []*Board) []AnalyzedBoard {
+				return []AnalyzedBoard{AnalyzedBoard{Board: s[0]}}
 			},
 			func(state interface{}, b *Board) {
 				if iv := b.Invalidity(IgnoreRollValidity); iv != "" {
@@ -1195,8 +1196,8 @@ func TestPlayGame(t *testing.T) {
 			2,
 			176,
 			"{W to play  666 after playing    6; !dbl; 1:rrrrrrrrrrr 2:r 3:r 4: 5: 6:r 7:r 8: 9: 10: 11: 12: 13: 14: 15: 16: 17: 18: 19: 20: 21: 22: 23: 24:, 15 W off, Score{Goal:0,W:2,r:0,Crawford on,inactive}}", // TODO(chandler37): Really? Study the entire game.
-			func(s []Board) int {
-				return rand.Intn(len(s))
+			func(s []*Board) []AnalyzedBoard {
+				return []AnalyzedBoard{AnalyzedBoard{Board: s[rand.Intn(len(s))]}}
 			},
 			func(state interface{}, b *Board) {
 				if iv := b.Invalidity(IgnoreRollValidity); iv != "" {
@@ -1214,8 +1215,8 @@ func TestPlayGame(t *testing.T) {
 			1,
 			56,
 			"{r after playing 4444; !dbl; 1: 2: 3: 4: 5: 6: 7: 8: 9: 10: 11: 12: 13: 14: 15: 16: 17: 18: 19: 20:W 21: 22:WWWW 23:WWWWWWW 24:WW, 1 W off, 15 r off, Score{Goal:0,W:0,r:1,Crawford on,inactive}}",
-			func(s []Board) int {
-				return rand.Intn(len(s))
+			func(s []*Board) []AnalyzedBoard {
+				return []AnalyzedBoard{AnalyzedBoard{Board: s[rand.Intn(len(s))]}}
 			},
 			func(state interface{}, b *Board) {
 				if iv := b.Invalidity(IgnoreRollValidity); iv != "" {
@@ -1233,8 +1234,8 @@ func TestPlayGame(t *testing.T) {
 			3,
 			111,
 			"{W after playing 1111; !dbl; 1:rrrr 2:rrr 3:rr 4: 5: 6: 7: 8: 9: 10: 11: 12: 13:r 14: 15:r 16:r 17:r 18: 19:r 20: 21:r 22: 23: 24:, 15 W off, Score{Goal:0,W:3,r:0,Crawford on,inactive}}", // TODO(chandler37): Really? Study the entire game.
-			func(s []Board) int {
-				return rand.Intn(len(s))
+			func(s []*Board) []AnalyzedBoard {
+				return []AnalyzedBoard{AnalyzedBoard{Board: s[rand.Intn(len(s))]}}
 			},
 			func(state interface{}, b *Board) {
 				if iv := b.Invalidity(IgnoreRollValidity); iv != "" {

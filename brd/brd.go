@@ -26,6 +26,10 @@ type Point [15]Checker
 
 type Points28 [MaxPip + 1]Point
 
+// TODO(chandler37): use sync.Pool for a Board pool and see how much it speeds
+// up the highest-level benchmarks to avoid giving the garbage collector so
+// much work.
+
 // See http://www.gammonlife.com/rules/backgammon-rules.htm for a picture of a
 // board with points annotated [1, 24]. The standard starting position has two
 // white checkers on 1 and two red checkers on 24. We also have a notion of
@@ -47,7 +51,41 @@ type Board struct {
 	Pips           Points28 // red borne off, the 24 points of the board, white borne off, red bar, white bar. Pips[1:25] are the 24 pips.
 }
 
-type Chooser func([]Board) int
+// TODO(chandler37): Test the AIs with a 6-prime from [6, 12) or even farther from home.
+
+// An intelligence (a player) has to make decisions about the doubling cube and
+// choose moves. A Chooser is just the part that chooses moves after the
+// doubling phase.
+//
+// Element zero of the returned slice is the best move, element len(result)-1
+// is the worst. If the analyses indicate a tie, it doesn't affect game
+// play. If you want to choose randomly from tied Boards, you must shuffle them
+// yourself.
+//
+// You are free to return a subset of the input, e.g. a single Board, the Kth:
+// []AnalyzedBoard{AnalyzedBoard{Board:input[K]}}. You must return at least one.
+//
+// Your output must not contain nil Board pointers. You must not mutate the
+// Boards pointed to by the input.
+type Chooser func([]*Board) []AnalyzedBoard
+
+type AnalyzedBoard struct {
+	Board    *Board
+	Analysis Analysis // optional
+}
+
+type Analysis interface {
+	Summary() string // for human consumption
+}
+
+func (b AnalyzedBoard) String() string {
+	if b.Analysis == nil {
+		return b.Board.String()
+	}
+	return fmt.Sprintf("%v (%v)", b.Board, b.Analysis.Summary())
+}
+
+// TODO(chandler37): create a high-level API for changing the RNG
 
 // Read-only method using a pointer receiver to be performant. The function
 // that are parameters use pointers and slices for efficiency's sake but must
@@ -64,7 +102,7 @@ type Chooser func([]Board) int
 //
 // TODO(chandler37): Perhaps also wrap this up with a "you cannot cheat or
 // accidentally mess things up" version that never lets you mutate state (i.e.,
-// copies the []Board and never gives a *Board)?
+// deep copies the []*Board and never gives a *Board)?
 func (b *Board) PlayGame(logState interface{}, chooser Chooser, logger func(interface{}, *Board), offerDouble, acceptDouble func(*Board) bool) (Checker, int, Score) {
 	if logger != nil {
 		logger(logState, b)
@@ -72,7 +110,15 @@ func (b *Board) PlayGame(logState interface{}, chooser Chooser, logger func(inte
 	currentBoard := b
 	for {
 		candidates := currentBoard.LegalContinuations()
-		currentBoard = &candidates[chooser(candidates)]
+		analyzedCandidates := chooser(candidates)
+		if len(analyzedCandidates) > len(candidates) {
+			panic("madness")
+		}
+		if len(analyzedCandidates) == 0 {
+			currentBoard = candidates[0]
+		} else {
+			currentBoard = analyzedCandidates[0].Board
+		}
 		victor, stakes, score := currentBoard.TakeTurn(offerDouble, acceptDouble)
 		logger(logState, currentBoard)
 		if victor != NoChecker {
@@ -269,16 +315,16 @@ func (b *Board) BlotLiability(player Checker) (result int) {
 // Read-only method using a pointer receiver to be performant.
 //
 // Enumerates all legal Board continuations without duplicates. The result is
-// guaranteed to be non-empty (sometimes it's just []Board{*b}).
+// guaranteed to be non-empty (sometimes it's just []*Board{b}).
 //
 // The resulting Boards have the same Roller and the same dice (though they may
 // be shifted from Roll to RollUsed). You must call TakeTurn() next.
-func (b *Board) LegalContinuations() []Board {
+func (b *Board) LegalContinuations() []*Board {
 	candidates := b.quasiLegalContinuations()
 	if len(candidates) < 1 {
 		panic("the no-op isn't there")
 	}
-	maxCandidates := make([]Board, 0, len(candidates))
+	maxCandidates := make([]*Board, 0, len(candidates))
 	maxDiceUsed := 0
 	for _, c := range candidates {
 		maxDiceUsed = max(len(c.RollUsed.Dice()), maxDiceUsed)
@@ -296,7 +342,7 @@ func (b *Board) LegalContinuations() []Board {
 	if len(arbitraryCandidate.RollUsed.Dice()) != 1 {
 		return maxCandidates
 	}
-	results := make([]Board, 0, len(maxCandidates))
+	results := make([]*Board, 0, len(maxCandidates))
 	var maxDieUsed Die
 	for _, c := range maxCandidates {
 		if dieUsed := c.RollUsed.Dice()[0]; dieUsed == ZeroDie {
@@ -655,11 +701,11 @@ func (b *Board) comeOffTheBar(die Die) *Board {
 	return &result
 }
 
-// possibilities will never be empty. It will sometimes be []Board{*b} e.g. if
+// possibilities will never be empty. It will sometimes be []*Board{b} e.g. if
 // there's nothing on the bar or if there's something on the bar that is
 // blocked from coming in. It will be multiple Boards if a Checker on the bar
 // can come in on multiple Points.
-func (b *Board) continuationsOffTheBar() (possibilities []Board) {
+func (b *Board) continuationsOffTheBar() (possibilities []*Board) {
 	// This is recursive, and the base case for our recursion is if (1)
 	// b.Roller has none on the bar or (2) the b.Roll is exhausted.
 	numOnBar := b.numCheckersRollerHasOnTheBar()
@@ -671,7 +717,7 @@ func (b *Board) continuationsOffTheBar() (possibilities []Board) {
 		}
 	}
 	if len(possibilities) == 0 {
-		possibilities = []Board{*b}
+		possibilities = []*Board{b}
 	}
 	return
 }
@@ -779,10 +825,10 @@ func (b *Board) canMoveChecker(startPipIndex int, die Die) (targetPip int, can b
 }
 
 // Invariant: len(b.Roll.Dice()) > 0 && b.numCheckersRollerHasOnTheBar() == 0
-func (b *Board) quasiLegalPostBarContinuations() (continuations []Board) {
+func (b *Board) quasiLegalPostBarContinuations() (continuations []*Board) {
 	remainingDice := b.Roll.Dice()
 	if len(remainingDice) == 0 || b.numCheckersRollerHasOnTheBar() > 0 {
-		return []Board{*b}
+		return []*Board{b}
 	}
 	// Imagine a starting board with White rolling <6 5>. We must examine both
 	// <5 6> and <6 5> to see the possibility of moving from point 1 to point
@@ -809,7 +855,7 @@ func (b *Board) quasiLegalPostBarContinuations() (continuations []Board) {
 		}
 	}
 	if len(continuations) == 0 {
-		continuations = append(continuations, *b)
+		continuations = append(continuations, b)
 	} else {
 		continuations = uniqueContinuations(continuations)
 	}
@@ -817,12 +863,12 @@ func (b *Board) quasiLegalPostBarContinuations() (continuations []Board) {
 }
 
 // to ease testing, this must be stable, i.e., not rearranging things
-func uniqueContinuations(continuations []Board) []Board {
-	result := make([]Board, 0, len(continuations))
+func uniqueContinuations(continuations []*Board) []*Board {
+	result := make([]*Board, 0, len(continuations))
 	for _, m := range continuations {
 		unique := true
 		for _, r := range result {
-			if m.Equals(r) {
+			if m.Equals(*r) {
 				unique = false
 				break
 			}
@@ -830,6 +876,9 @@ func uniqueContinuations(continuations []Board) []Board {
 		if unique {
 			result = append(result, m)
 		}
+	}
+	if len(result) == 0 {
+		panic(fmt.Sprintf("input had %d elements", len(continuations)))
 	}
 	return result
 }
@@ -842,9 +891,9 @@ func uniqueContinuations(continuations []Board) []Board {
 // one, two, or three. (You must take the max possible. If you can take three
 // but not four, you must. If you can take two, you must. if you can take one,
 // you must.)
-func (b *Board) quasiLegalContinuations() []Board {
+func (b *Board) quasiLegalContinuations() []*Board {
 	barContinuations := b.continuationsOffTheBar()
-	continuations := []Board{}
+	continuations := []*Board{}
 	for _, next := range barContinuations {
 		continuations = append(continuations, next.quasiLegalPostBarContinuations()...)
 	}

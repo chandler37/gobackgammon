@@ -114,7 +114,7 @@ func main() {
 		ai.StartDebugging()
 	}
 	redChooser := ai.MakePlayerConservative(0, nil)
-	chooser := func(s []brd.Board) int {
+	chooser := func(s []*brd.Board) []brd.AnalyzedBoard {
 		if s[0].Roller == brd.White {
 			ai.StopDebugging()
 			c := ai.MakePlayerConservative(0, nil)(s)
@@ -127,42 +127,38 @@ func main() {
 			panic("will not happen")
 		}
 		if len(s) == 1 && *automaticallyAcceptTheOnlyChoice {
-			return 0
+			return nil
 		}
 		conservativeChoice := redChooser(s)
-		fmt.Printf("Which number do you choose from the following choices? (* is AI's choice, %d)\n", conservativeChoice)
-		for i, b := range s {
-			hint := " "
-			if conservativeChoice == i {
-				hint = "*"
+		fmt.Printf("Which number do you choose from the following choices? (the first, 0, is AI's choice)\n")
+		for i, ab := range conservativeChoice {
+			summary := ""
+			if ab.Analysis != nil {
+				summary = fmt.Sprintf(" (%v)", ab.Analysis.Summary())
 			}
-			fmt.Printf("%s%-3d: %v\n", hint, i, b.String())
+			fmt.Printf("%-3d: %v%v\n", i, ab.Board.String(), summary)
 		}
 		for {
-			fmt.Print("Enter choice number or a substring filter: ")
+			fmt.Print("Enter number or a substring filter, or <return> for 0: ")
 			text, _ := reader.ReadString('\n')
 			text = strings.TrimSuffix(text, "\n")
 			if text == "" {
-				continue
-			}
-			if text == "*" {
-				return conservativeChoice
+				text = "0"
 			}
 			choice, err := strconv.Atoi(text)
 			if err != nil {
-				for n, b := range s {
-					bs := b.String()
-					if strings.Contains(bs, text) {
+				for n, ab := range conservativeChoice {
+					if bs := ab.Board.String(); strings.Contains(bs, text) {
 						fmt.Printf("%-3d: %v\n", n, bs)
 					}
 				}
 				continue
 			}
-			if choice < 0 || choice >= len(s) {
+			if choice < 0 || choice >= len(conservativeChoice) {
 				fmt.Println("That number is out of bounds.")
 				continue
 			}
-			return choice
+			return []brd.AnalyzedBoard{conservativeChoice[choice]}
 		}
 	}
 	victor, stakes, score := board.PlayGame(struct{}{}, chooser, logger, nil, nil)

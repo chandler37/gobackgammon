@@ -3,6 +3,8 @@ package ai
 import (
 	"fmt"
 	"math/rand"
+	"sort"
+	"strings"
 
 	"github.com/chandler37/gobackgammon/brd"
 )
@@ -17,42 +19,11 @@ func StopDebugging() {
 	debug = false
 }
 
-func randomChoice(s []*brd.Board) int {
-	numNonNil := 0
-	indexOfArbitraryNonNilBoard := -1
-	for i, b := range s {
-		if b != nil {
-			numNonNil++
-			indexOfArbitraryNonNilBoard = i
-		}
+func shuffle(choices []brd.AnalyzedBoard) {
+	if len(choices) > 1 {
+		// a tie is fine:
+		maximizer("randomizer", choices, func(*brd.Board) int64 { return rand.Int63() })
 	}
-	if numNonNil < 1 {
-		panic(fmt.Sprintf("The AI eliminated all %d choices", len(s)))
-	}
-	if numNonNil == 1 {
-		return indexOfArbitraryNonNilBoard
-	}
-	if debug {
-		fmt.Printf("DBG(random): random options are the following:\n")
-	}
-	rando := rand.Intn(numNonNil)
-	if debug {
-		for _, b := range s {
-			if b != nil {
-				fmt.Printf("DBG(random): %v\n", *b)
-			}
-		}
-	}
-	numNonNil = 0
-	for i, b := range s {
-		if b != nil {
-			if numNonNil == rando {
-				return i
-			}
-			numNonNil++
-		}
-	}
-	panic("how?")
 }
 
 const (
@@ -74,52 +45,84 @@ func min64(i, j int64) int64 {
 	return j
 }
 
-func converter(choices []brd.Board) []*brd.Board {
-	result := make([]*brd.Board, 0, len(choices))
+func converter(choices []*brd.Board) []brd.AnalyzedBoard {
+	result := make([]brd.AnalyzedBoard, len(choices), len(choices))
 	for i, _ := range choices {
-		result = append(result, &choices[i])
+		result[i].Board = choices[i]
 	}
 	return result
 }
 
-func maximizer(debugLabel string, choices []*brd.Board, f func(*brd.Board) int64) []*brd.Board {
-	return minmaximizer(debugLabel, choices, f, minInt64, max64)
+func maximizer(label label, choices []brd.AnalyzedBoard, f func(*brd.Board) int64) {
+	minmaximizer(label, choices, f, minInt64, max64)
 }
 
-func minimizer(debugLabel string, choices []*brd.Board, f func(*brd.Board) int64) []*brd.Board {
-	return minmaximizer(debugLabel, choices, f, maxInt64, min64)
+func minimizer(label label, choices []brd.AnalyzedBoard, f func(*brd.Board) int64) {
+	minmaximizer(label, choices, f, maxInt64, min64)
 }
 
-func minmaximizer(debugLabel string, choices []*brd.Board, f func(*brd.Board) int64, extremum int64, cmp func(int64, int64) int64) []*brd.Board {
+type label string
+
+type minmaxAnalysis struct {
+	RuledOut string // empty string: not ruled out yet. Human readable.
+	Scores   scoreMap
+}
+
+type scoreMap map[label]int64
+
+func (s scoreMap) String() string {
+	keys := make([]label, 0, len(s))
+	for k, _ := range s {
+		keys = append(keys, k)
+	}
+	sort.Slice(keys, func(i, j int) bool { return keys[i] < keys[j] })
+	parts := make([]string, 0, len(s))
+	for _, k := range keys {
+		parts = append(parts, fmt.Sprintf("%v=%v", k, s[k]))
+	}
+	return strings.Join(parts, " ")
+}
+
+func (m minmaxAnalysis) Summary() string {
+	if m.RuledOut == "" {
+		return "wasn't ruled out by heuristics. Details: " + m.Scores.String()
+	}
+	return m.RuledOut
+}
+
+func analyzedBoardIsRuledOut(a brd.AnalyzedBoard) bool {
+	return a.Analysis != nil && a.Analysis.(minmaxAnalysis).RuledOut != ""
+}
+
+func minmaximizer(label label, choices []brd.AnalyzedBoard, f func(*brd.Board) int64, extremum int64, cmp func(int64, int64) int64) {
 	if debug {
-		numNonNil := 0
+		numNotRuledOut := 0
 		for _, c := range choices {
-			if c != nil {
-				numNonNil++
+			if !analyzedBoardIsRuledOut(c) {
+				numNotRuledOut++
 			}
 		}
-		fmt.Printf("DBG(%s): starting with %d remaining choices\n", debugLabel, numNonNil)
+		fmt.Printf("DBG(%s): starting with %d remaining choices\n", label, numNotRuledOut)
 	}
-	result := make([]*brd.Board, 0, len(choices))
-	values := make([]int64, 0, len(choices))
 	extremumFound := extremum
 	for i, c := range choices {
-		if c == nil {
-			values = append(values, extremum)
-		} else {
-			v := f(c)
+		if !analyzedBoardIsRuledOut(c) {
+			v := f(c.Board)
 			extremumFound = cmp(extremumFound, v)
-			values = append(values, v)
+			if choices[i].Analysis == nil {
+				choices[i].Analysis = minmaxAnalysis{Scores: make(scoreMap)}
+			}
+			choices[i].Analysis.(minmaxAnalysis).Scores[label] = v
 			if debug {
-				fmt.Printf("DBG(%s): score is %d, choice is %-3d %v\n", debugLabel, v, i, *c)
+				fmt.Printf("DBG(%s): score is %d, choice is %-3d %v\n", label, v, i, *c.Board)
 			}
 		}
 	}
 	debugging := debug
 	if debug {
 		numSelected := 0
-		for _, v := range values {
-			if v == extremumFound {
+		for _, c := range choices {
+			if c.Analysis != nil && c.Analysis.(minmaxAnalysis).Scores[label] == extremumFound {
 				numSelected++
 			}
 		}
@@ -127,15 +130,34 @@ func minmaximizer(debugLabel string, choices []*brd.Board, f func(*brd.Board) in
 			debugging = false
 		}
 	}
-	for i, v := range values {
-		if v == extremumFound {
+	result := make([]brd.AnalyzedBoard, 0, len(choices))
+	for i, c := range choices {
+		if c.Analysis != nil && c.Analysis.(minmaxAnalysis).Scores[label] == extremumFound {
 			if debugging {
-				fmt.Printf("DBG(%s): %d:%v\n", debugLabel, i, *choices[i])
+				fmt.Printf("DBG(%s): score=%v %d:%v\n", label, extremumFound, i, *choices[i].Board)
 			}
-			result = append(result, choices[i])
-		} else {
-			result = append(result, nil)
+			result = append(result, c)
 		}
 	}
-	return result
+	remainder := make([]brd.AnalyzedBoard, 0, len(choices)-len(result))
+	for _, c := range choices {
+		if analyzedBoardIsRuledOut(c) {
+			continue
+		}
+		if a := c.Analysis.(minmaxAnalysis); a.Scores[label] != extremumFound {
+			if a.RuledOut != "" {
+				panic("already ruled out: " + a.RuledOut)
+			}
+			a.RuledOut = fmt.Sprintf("Ruled out by %v (%v)", label, a.Scores[label])
+			c.Analysis = a
+			remainder = append(remainder, c)
+		}
+	}
+	sort.SliceStable(
+		remainder,
+		func(i, j int) bool {
+			return remainder[i].Analysis.(minmaxAnalysis).Scores[label] < remainder[j].Analysis.(minmaxAnalysis).Scores[label]
+		})
+	result = append(result, remainder...)
+	copy(choices, result)
 }
