@@ -11,11 +11,9 @@ import (
 // no difference between a backgammon and a single-stakes loss, e.g. if the
 // match is to five and we're down by four.
 
-// Returns a brd.Chooser. Until it's racing, it really, really hates open
-// blots, even ones that are unhittable. (A blot is a point containing only one
-// Checker.) TODO(chandler37): make it care less about unhittable ones but it
-// should still care because those "unhittable" blots may make it harder to hit
-// our opponent later.
+// Returns a brd.Chooser. Until it's racing, it really, really hates open,
+// hittable blots, and prefers not to leave even unhittable blots. (A blot is a
+// point containing only one Checker.)
 //
 // It detects if it's a race and plays differently then, delegating to
 // PlayerRacer.
@@ -29,9 +27,9 @@ import (
 // Implement the simulations.
 //
 // TODO(chandler37): This does not avoid backgammons very well; see
-// TestPlayerConservativeAvoidsBackgammons. That might be fine in a tournament
-// depending on the score, but we have another TODO: TODO(chandler37):
-// Implement tournament play.
+// TestPlayerConservative. That might be fine in a tournament depending on the
+// score, but we have another TODO: TODO(chandler37): Implement tournament
+// play.
 func MakePlayerConservative(amountOfForesight uint64, otherPlayer brd.Chooser) brd.Chooser {
 	if amountOfForesight < 1 {
 		return playerConservative
@@ -43,8 +41,6 @@ func MakePlayerConservative(amountOfForesight uint64, otherPlayer brd.Chooser) b
 }
 
 // A conservative Chooser with no foresight (0-ply).
-//
-// TODO(chandler37): Fill in Analysis
 func playerConservative(choices []*brd.Board) []brd.AnalyzedBoard {
 	if debug {
 		fmt.Printf("DBG(PlayerConservative): %d choices\n", len(choices))
@@ -66,7 +62,7 @@ func playerConservative(choices []*brd.Board) []brd.AnalyzedBoard {
 		"minMyBlotLiability",
 		nextRound,
 		func(b *brd.Board) int64 {
-			return int64(b.BlotLiability(b.Roller))
+			return int64(b.BlotLiability(b.Roller, false))
 		})
 	minimizer(
 		"minMyBlots",
@@ -109,6 +105,12 @@ func playerConservative(choices []*brd.Board) []brd.AnalyzedBoard {
 		nextRound,
 		func(b *brd.Board) int64 {
 			return int64(b.NumCheckersHome(b.Roller))
+		})
+	minimizer(
+		"minMyBlotLiabilityIncludingUnhittable",
+		nextRound,
+		func(b *brd.Board) int64 {
+			return int64(b.BlotLiability(b.Roller, true))
 		})
 	shuffle(nextRound)
 	return nextRound

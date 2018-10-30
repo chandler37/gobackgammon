@@ -1349,13 +1349,13 @@ func TestPipCount(t *testing.T) {
 func TestBlotLiability(t *testing.T) {
 	b := New(true)
 	for _, player := range players {
-		if x := b.BlotLiability(player); x != 0 {
+		if x := b.BlotLiability(player, true); x != 0 {
 			t.Errorf("player=%v x=%d", player, x)
 		}
 	}
 	b.Pips[BarWhitePip].Reset(2, White)
 	b.Pips[1].Reset(0, White)
-	if x := b.BlotLiability(White); x != 0 {
+	if x := b.BlotLiability(White, true); x != 0 {
 		t.Errorf("x=%d", x)
 	}
 
@@ -1364,10 +1364,60 @@ func TestBlotLiability(t *testing.T) {
 	b.Pips[6].Reset(1, Red)
 	b.Pips[BarWhitePip].Reset(4, White)
 	b.Pips[19].Reset(1, White)
-	if x := b.BlotLiability(Red); x != 19 {
+	if x := b.BlotLiability(Red, true); x != 19 {
 		t.Errorf("x=%d", x)
 	}
-	if x := b.BlotLiability(White); x != 19 {
+	if x := b.BlotLiability(White, true); x != 19 {
+		t.Errorf("x=%d", x)
+	}
+}
+
+func TestBlotLiabilityIgnoringUnhittable(t *testing.T) {
+	b := New(true)
+	for _, player := range players {
+		if x := b.BlotLiability(player, false); x != 0 {
+			t.Errorf("player=%v x=%d", player, x)
+		}
+	}
+	b.Pips[BarWhitePip].Reset(2, White)
+	b.Pips[1].Reset(0, White)
+	if x := b.BlotLiability(White, false); x != 0 {
+		t.Errorf("x=%d", x)
+	}
+
+	b = New(true)
+	b.Pips[BarRedPip].Reset(4, Red)
+	b.Pips[6].Reset(1, Red)
+	b.Pips[BarWhitePip].Reset(4, White)
+	b.Pips[19].Reset(1, White)
+	if x := b.BlotLiability(Red, false); x != 19 {
+		t.Errorf("x=%d", x)
+	}
+	if x := b.BlotLiability(White, false); x != 19 {
+		t.Errorf("x=%d", x)
+	}
+
+	b = New(true)
+	b.Pips[1].Reset(0, Red)
+	b.Pips[12].Reset(5+2, White)
+	b.Pips[6].Reset(1, Red)
+	b.Pips[8].Reset(3+4, Red)
+	if x := b.BlotLiability(Red, false); x != 0 {
+		t.Errorf("x=%d", x)
+	}
+	if x := b.BlotLiability(Red, true); x != 19 {
+		t.Errorf("x=%d", x)
+	}
+
+	b = New(true)
+	b.Pips[24].Reset(0, Red)
+	b.Pips[13].Reset(5+2, Red)
+	b.Pips[19].Reset(1, White)
+	b.Pips[17].Reset(3+4, White)
+	if x := b.BlotLiability(White, false); x != 0 {
+		t.Errorf("x=%d", x)
+	}
+	if x := b.BlotLiability(White, true); x != 19 {
 		t.Errorf("x=%d", x)
 	}
 }

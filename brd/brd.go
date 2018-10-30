@@ -286,7 +286,40 @@ func (b *Board) Racing() bool {
 	return extremeRed < extremeWhite
 }
 
-func (b *Board) BlotLiability(player Checker) (result int) {
+func (b *Board) isHittable(i int, player Checker) bool {
+	if player == Red {
+		if b.Pips[BarWhitePip].NumCheckers() > 0 {
+			return true
+		} else {
+			for j := i - 1; j > 0; j-- {
+				if b.Pips[j].NumWhite() > 0 {
+					return true
+				}
+			}
+		}
+		return false
+	}
+	if player != White {
+		panic(player.String())
+	}
+	if b.Pips[BarRedPip].NumCheckers() > 0 {
+		return true
+	} else {
+		for j := i + 1; j < 25; j++ {
+			if b.Pips[j].NumRed() > 0 {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// Returns a pip count for the sum of the pip counts of the player's blots.
+//
+// If includeUnhittable is true, this treat a blot as a liability even if the
+// opponent has no change to hit it (e.g., if White is not on the bar and is
+// entirely home, a Red blot outside of White's home is unhittable).
+func (b *Board) BlotLiability(player Checker, includeUnhittable bool) (result int) {
 	fn := func(index int) int {
 		return index
 	}
@@ -297,7 +330,9 @@ func (b *Board) BlotLiability(player Checker) (result int) {
 	}
 	for i := 1; i < 25; i++ {
 		if b.Pips[i].Num(player) == 1 {
-			result += fn(i)
+			if includeUnhittable || b.isHittable(i, player) {
+				result += fn(i)
+			}
 		}
 	}
 	return
