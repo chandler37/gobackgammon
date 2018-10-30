@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"math/rand"
 	"strings"
+	"sync"
 )
 
 // Each player has 15 Checkers. A checker is either on a point, on the bar, or borne off.
@@ -23,10 +24,6 @@ const (
 type Point int8
 
 type Points28 [MaxPip + 1]Point
-
-// TODO(chandler37): use sync.Pool for a Board pool and see how much it speeds
-// up the highest-level benchmarks to avoid giving the garbage collector so
-// much work.
 
 // See http://www.gammonlife.com/rules/backgammon-rules.htm for a picture of a
 // board with points annotated [1, 24]. The standard starting position has two
@@ -85,6 +82,16 @@ func (b AnalyzedBoard) String() string {
 
 // TODO(chandler37): create a high-level API for changing the RNG
 
+// Optional performance helper: Gives the garbage collector less work to do by
+// returning all but keeper to the free pool.
+func OptionallyReturnBoardsToPool(all []*Board, keeper *Board) {
+	for _, b := range all {
+		if b != keeper {
+			boardPool.Put(b)
+		}
+	}
+}
+
 // Read-only method using a pointer receiver to be performant. The function
 // that are parameters use pointers and slices for efficiency's sake but must
 // not mutate their arguments.
@@ -117,6 +124,7 @@ func (b *Board) PlayGame(logState interface{}, chooser Chooser, logger func(inte
 		} else {
 			currentBoard = analyzedCandidates[0].Board
 		}
+		OptionallyReturnBoardsToPool(candidates, currentBoard)
 		victor, stakes, score := currentBoard.TakeTurn(offerDouble, acceptDouble)
 		logger(logState, currentBoard)
 		if victor != NoChecker {
@@ -302,6 +310,8 @@ func (b *Board) BlotLiability(player Checker) (result int) {
 //
 // The resulting Boards have the same Roller and the same dice (though they may
 // be shifted from Roll to RollUsed). You must call TakeTurn() next.
+//
+// See also OptionallyReturnBoardsToPool().
 func (b *Board) LegalContinuations() []*Board {
 	candidates := b.quasiLegalContinuations()
 	if len(candidates) < 1 {
@@ -519,6 +529,18 @@ func (b Board) Invalidity(ignoreRoll bool) string {
 	return ""
 }
 
+// Performance improvement: Gives the garbage collector less to worry
+// about. This doesn't show up that much on `make benchseeded` but the real
+// benchmark for this would be many-ply lookahead Monte-Carlo simulations.
+//
+// 1584 New() calls for 41646 Get() calls is typical for a game of
+// PlayerConservative against itself.
+var boardPool = sync.Pool{
+	New: func() interface{} {
+		return new(Board)
+	},
+}
+
 func max(i, j int) int {
 	if i < j {
 		return j
@@ -600,7 +622,8 @@ func (b *Board) comeOffTheBar(die Die) *Board {
 	if b.pipIsBlockedByOpponent(i) {
 		return nil
 	}
-	result := *b
+	result := boardPool.Get().(*Board)
+	*result = *b
 	result.Roll = result.Roll.Use(die, &result.RollUsed)
 	if other := b.Roller.OtherColor(); result.Pips[i].Num(other) > 0 {
 		result.Pips[i].Reset(0, White)
@@ -611,26 +634,29 @@ func (b *Board) comeOffTheBar(die Die) *Board {
 	}
 	result.Pips[i].Add(b.Roller)
 	result.Pips[barPip].Subtract()
-	return &result
+	return result
 }
 
-// possibilities will never be empty. It will sometimes be []*Board{b} e.g. if
-// there's nothing on the bar or if there's something on the bar that is
-// blocked from coming in. It will be multiple Boards if a Checker on the bar
-// can come in on multiple Points.
+// len(possibilities) will be zero if there's nothing on the bar or if there's
+// something on the bar that is blocked from coming in. It will be multiple
+// Boards if a Checker on the bar can come in on multiple Points.
 func (b *Board) continuationsOffTheBar() (possibilities []*Board) {
 	// This is recursive, and the base case for our recursion is if (1)
 	// b.Roller has none on the bar or (2) the b.Roll is exhausted.
-	numOnBar := b.numCheckersRollerHasOnTheBar()
-	if numOnBar > 0 {
+	if numOnBar := b.numCheckersRollerHasOnTheBar(); numOnBar > 0 {
 		for _, die := range b.Roll.UniqueDice() {
 			if next := b.comeOffTheBar(die); next != nil {
-				possibilities = append(possibilities, next.continuationsOffTheBar()...)
+				cont := next.continuationsOffTheBar()
+				for _, c := range cont {
+					possibilities = append(possibilities, c)
+				}
+				if len(cont) == 0 {
+					possibilities = append(possibilities, next)
+				} else {
+					boardPool.Put(next)
+				}
 			}
 		}
-	}
-	if len(possibilities) == 0 {
-		possibilities = []*Board{b}
 	}
 	return
 }
@@ -713,10 +739,12 @@ func (b *Board) canMoveChecker(startPipIndex int, die Die) (targetPip int, can b
 }
 
 // Invariant: len(b.Roll.Dice()) > 0 && b.numCheckersRollerHasOnTheBar() == 0
+//
+// Returns len(continuations)==0 when the only answer is b itself.
 func (b *Board) quasiLegalPostBarContinuations() (continuations []*Board) {
 	remainingDice := b.Roll.Dice()
 	if len(remainingDice) == 0 || b.numCheckersRollerHasOnTheBar() > 0 {
-		return []*Board{b}
+		return
 	}
 	// Imagine a starting board with White rolling <6 5>. We must examine both
 	// <5 6> and <6 5> to see the possibility of moving from point 1 to point
@@ -725,7 +753,8 @@ func (b *Board) quasiLegalPostBarContinuations() (continuations []*Board) {
 		for i := 1; i < 25; i++ {
 			if b.Pips[i].Num(b.Roller) > 0 {
 				if targetPip, can := b.canMoveChecker(i, die); can {
-					next := *b
+					next := boardPool.Get().(*Board)
+					*next = *b
 					next.Pips[i].Subtract()
 					if other := b.Roller.OtherColor(); next.Pips[targetPip].Num(other) > 0 {
 						next.Pips[targetPip].Subtract()
@@ -737,14 +766,18 @@ func (b *Board) quasiLegalPostBarContinuations() (continuations []*Board) {
 					}
 					next.Pips[targetPip].Add(b.Roller)
 					next.Roll = next.Roll.Use(die, &next.RollUsed)
-					continuations = append(continuations, next.quasiLegalPostBarContinuations()...)
+					cont := next.quasiLegalPostBarContinuations()
+					if len(cont) == 0 {
+						continuations = append(continuations, next)
+					} else {
+						boardPool.Put(next)
+						continuations = append(continuations, cont...)
+					}
 				}
 			}
 		}
 	}
-	if len(continuations) == 0 {
-		continuations = append(continuations, b)
-	} else {
+	if len(continuations) != 0 {
 		continuations = uniqueContinuations(continuations)
 	}
 	return
@@ -753,16 +786,17 @@ func (b *Board) quasiLegalPostBarContinuations() (continuations []*Board) {
 // to ease testing, this must be stable, i.e., not rearranging things
 func uniqueContinuations(continuations []*Board) []*Board {
 	result := make([]*Board, 0, len(continuations))
-	for _, m := range continuations {
+	for _, c := range continuations {
 		unique := true
 		for _, r := range result {
-			if m.Equals(*r) {
+			if c.Equals(*r) {
 				unique = false
+				boardPool.Put(c)
 				break
 			}
 		}
 		if unique {
-			result = append(result, m)
+			result = append(result, c)
 		}
 	}
 	if len(result) == 0 {
@@ -781,9 +815,20 @@ func uniqueContinuations(continuations []*Board) []*Board {
 // you must.)
 func (b *Board) quasiLegalContinuations() []*Board {
 	barContinuations := b.continuationsOffTheBar()
+	if len(barContinuations) == 0 {
+		barContinuations = []*Board{b}
+	}
+	// the max capacity we see when PlayerConservative plays itself is
+	// 206,159,153,140,135,129,107,96,92,89,88,88,85,79,76,76,75,74,73,73,73,71,55,53,47,41,39,27,26,25
+	// for a few random trials. Benchmarking doesn't show an improvement when
+	// we give a high capacity, though:
 	continuations := []*Board{}
 	for _, next := range barContinuations {
-		continuations = append(continuations, next.quasiLegalPostBarContinuations()...)
+		cont := next.quasiLegalPostBarContinuations()
+		if len(cont) == 0 {
+			cont = []*Board{next}
+		}
+		continuations = append(continuations, cont...)
 	}
 	return uniqueContinuations(continuations)
 }

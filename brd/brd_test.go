@@ -849,19 +849,16 @@ func TestComingOffTheBar(t *testing.T) {
 				exNum, ex.InitializerCheck, y)
 		}
 		candidates := board.continuationsOffTheBar()
-		if ex.continuations == nil {
-			ex.continuations = []string{ex.InitializerCheck}
-		}
 		if expected := len(ex.continuations); len(candidates) != expected {
 			t.Errorf(
-				"expected %d candidates, not %v\nexpected: %v",
-				expected, candidates, ex.continuations)
+				"exNum=%d expected %d candidates, not %v\nexpected: %v",
+				exNum, expected, candidates, ex.continuations)
 		} else {
 			for d, continuation := range ex.continuations {
 				if candidates[d].String() != continuation {
 					t.Errorf(
-						"candidates[%d] is \n%v\nand we wanted\n%v",
-						d, candidates[d], continuation)
+						"exNum=%d candidates[%d] is \n%v\nand we wanted\n%v",
+						exNum, d, candidates[d], continuation)
 				}
 			}
 		}
