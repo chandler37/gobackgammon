@@ -15,7 +15,7 @@ vet:
 	go vet ./...
 build:
 	go build .
-gobackgammon: bg.go ai/*.go brd/*.go json/*.go
+gobackgammon: bg.go ai/*.go brd/*.go json/*.go svg/*.go
 	go build .
 run: gobackgammon
 	./gobackgammon -debug
@@ -32,6 +32,8 @@ textdoc:
 	go doc github.com/chandler37/gobackgammon/brd
 	@echo " "
 	go doc github.com/chandler37/gobackgammon/json
+	@echo " "
+	go doc github.com/chandler37/gobackgammon/svg
 clean:
 	rm -fr bin/ pkg/ coverprofile.out
 	go clean -cache
