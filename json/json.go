@@ -241,19 +241,19 @@ type compactScore struct {
 
 // "W15" for fifteen White or "r" for one Red or "" for an empty Point
 func makeCompactPoint(pt *brd.Point) string {
-	for i := len(*pt) - 1; i >= 0; i-- {
-		if pt[i] == brd.NoChecker {
-			continue
-		}
-		c := "r"
-		if pt[i] == brd.White {
-			c = "W"
-		}
-		if i == 0 {
-			return c
-		} else {
-			return fmt.Sprintf("%s%d", c, i+1)
-		}
+	nr := pt.NumRed()
+	if nr == 1 {
+		return "r"
+	}
+	nw := pt.NumWhite()
+	if nw == 1 {
+		return "W"
+	}
+	if nw > 1 {
+		return fmt.Sprintf("W%d", nw)
+	}
+	if nr > 1 {
+		return fmt.Sprintf("r%d", nr)
 	}
 	return ""
 }

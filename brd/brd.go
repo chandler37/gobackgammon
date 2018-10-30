@@ -17,12 +17,10 @@ const (
 
 // A point, sometimes called a pip, is represented on the board by a
 // triangle. Zero or more checkers, all of like color, may occupy a
-// point/pip. Invariants: (1) At most one color will be represented. (2) Once
-// you see an NoChecker value, the rest are NoChecker too.
-//
-// This is not a slice for efficiency's sake and to make it easy to copy a
-// Board.
-type Point [15]Checker
+// point/pip. Values are [-15, 15] where -3 means there are three White
+// checkers and 15 means there are fifteen Red checkers and 0 means there are
+// no checkers.
+type Point int8
 
 type Points28 [MaxPip + 1]Point
 
@@ -194,12 +192,13 @@ func (b *Board) NumCheckersHome(player Checker) (result int) {
 		home = b.Pips[1:7]
 	}
 	for _, p := range home {
-		for _, c := range p {
-			if c == player {
-				result++
+		if player == Red {
+			if p > 0 {
+				result += int(p)
 			}
-			if c == NoChecker {
-				break
+		} else {
+			if p < 0 {
+				result += int(-p)
 			}
 		}
 	}
@@ -208,31 +207,15 @@ func (b *Board) NumCheckersHome(player Checker) (result int) {
 
 func (b *Board) PipCount(player Checker) (result int) {
 	if player == White {
-		for _, c := range b.Pips[BarWhitePip] {
-			if c != NoChecker {
-				result += 25
-			}
-		}
+		result += 25 * b.Pips[BarWhitePip].NumCheckers()
 		for i := 1; i < 25; i++ {
-			for _, c := range b.Pips[i] {
-				if c == player {
-					result += 25 - i
-				}
-			}
+			result += (25 - i) * b.Pips[i].NumWhite()
 		}
 		return
 	}
-	for _, c := range b.Pips[BarRedPip] {
-		if c != NoChecker {
-			result += 25
-		}
-	}
+	result += 25 * b.Pips[BarRedPip].NumCheckers()
 	for i := 1; i < 25; i++ {
-		for _, c := range b.Pips[i] {
-			if c == player {
-				result += i
-			}
-		}
+		result += i * b.Pips[i].NumRed()
 	}
 	return
 }
@@ -240,11 +223,11 @@ func (b *Board) PipCount(player Checker) (result int) {
 func (b *Board) PipCountOfFarthestChecker(player Checker) int {
 	if player == White {
 		extremeWhite := -1
-		if b.Pips[BarWhitePip][0] != NoChecker {
+		if b.Pips[BarWhitePip].NumCheckers() > 0 {
 			extremeWhite = 0
 		} else {
 			for i := 1; i < 25; i++ {
-				if b.Pips[i][0] == White {
+				if b.Pips[i].NumWhite() > 0 {
 					extremeWhite = i
 					break
 				}
@@ -253,11 +236,11 @@ func (b *Board) PipCountOfFarthestChecker(player Checker) int {
 		return 25 - extremeWhite
 	}
 	extremeRed := -1
-	if b.Pips[BarRedPip][0] != NoChecker {
+	if b.Pips[BarRedPip].NumCheckers() > 0 {
 		extremeRed = 25
 	} else {
 		for i := 24; i > 0; i-- {
-			if b.Pips[i][0] == Red {
+			if b.Pips[i].NumRed() > 0 {
 				extremeRed = i
 				break
 			}
@@ -269,11 +252,11 @@ func (b *Board) PipCountOfFarthestChecker(player Checker) int {
 // A "race" is when it is impossible for either player to hit the other.
 func (b *Board) Racing() bool {
 	extremeWhite := -1
-	if b.Pips[BarWhitePip][0] != NoChecker {
+	if b.Pips[BarWhitePip].NumCheckers() > 0 {
 		extremeWhite = 0
 	} else {
 		for i := 1; i < 25; i++ {
-			if b.Pips[i][0] == White {
+			if b.Pips[i].NumWhite() > 0 {
 				extremeWhite = i
 				break
 			}
@@ -281,11 +264,11 @@ func (b *Board) Racing() bool {
 	}
 
 	extremeRed := -1
-	if b.Pips[BarRedPip][0] != NoChecker {
+	if b.Pips[BarRedPip].NumCheckers() > 0 {
 		extremeRed = 25
 	} else {
 		for i := 24; i > 0; i-- {
-			if b.Pips[i][0] == Red {
+			if b.Pips[i].NumRed() > 0 {
 				extremeRed = i
 				break
 			}
@@ -305,7 +288,7 @@ func (b *Board) BlotLiability(player Checker) (result int) {
 		}
 	}
 	for i := 1; i < 25; i++ {
-		if b.Pips[i][0] == player && b.Pips[i][1] == NoChecker {
+		if b.Pips[i].Num(player) == 1 {
 			result += fn(i)
 		}
 	}
@@ -398,14 +381,14 @@ func (b *Board) Equals(o Board) bool {
 
 func New(paranoid bool) *Board {
 	board := Board{Stakes: 1, WhiteCanDouble: true, RedCanDouble: true}
-	board.Pips[1] = Point{White, White}
-	board.Pips[24] = Point{Red, Red}
-	board.Pips[6] = Point{Red, Red, Red, Red, Red}
-	board.Pips[19] = Point{White, White, White, White, White}
-	board.Pips[8] = Point{Red, Red, Red}
-	board.Pips[17] = Point{White, White, White}
-	board.Pips[12] = Point{White, White, White, White, White}
-	board.Pips[13] = Point{Red, Red, Red, Red, Red}
+	board.Pips[1].Reset(2, White)
+	board.Pips[24].Reset(2, Red)
+	board.Pips[6].Reset(5, Red)
+	board.Pips[19].Reset(5, White)
+	board.Pips[8].Reset(3, Red)
+	board.Pips[17].Reset(3, White)
+	board.Pips[12].Reset(5, White)
+	board.Pips[13].Reset(5, Red)
 
 	board.Roller = players[rand.Intn(2)]
 	for {
@@ -440,41 +423,27 @@ func (b Board) String() string {
 	}
 	barWhite := ""
 	l := []string{}
-	for _, x := range b.Pips[BarWhitePip] {
-		if x != NoChecker {
-			l = append(l, fmt.Sprintf("%v", x))
-		}
+	for n := 0; n < b.Pips[BarWhitePip].NumCheckers(); n++ {
+		l = append(l, fmt.Sprintf("%v", White))
 	}
 	if len(l) > 0 {
 		barWhite = fmt.Sprintf(", %v on bar", strings.Join(l, ""))
 	}
 	barRed := ""
 	l = []string{}
-	for _, x := range b.Pips[BarRedPip] {
-		if x != NoChecker {
-			l = append(l, fmt.Sprintf("%v", x))
-		}
+	for n := 0; n < b.Pips[BarRedPip].NumCheckers(); n++ {
+		l = append(l, fmt.Sprintf("%v", Red))
 	}
 	if len(l) > 0 {
 		barRed = fmt.Sprintf(", %v on bar", strings.Join(l, ""))
 	}
 	borneOffWhite := ""
-	num := 0
-	for _, x := range b.Pips[BorneOffWhitePip] {
-		if x != NoChecker {
-			num++
-		}
-	}
+	num := b.Pips[BorneOffWhitePip].NumCheckers()
 	if num > 0 {
 		borneOffWhite = fmt.Sprintf(", %d %v off", num, White)
 	}
 	borneOffRed := ""
-	num = 0
-	for _, x := range b.Pips[BorneOffRedPip] {
-		if x != NoChecker {
-			num++
-		}
-	}
+	num = b.Pips[BorneOffRedPip].NumCheckers()
 	if num > 0 {
 		borneOffRed = fmt.Sprintf(", %d %v off", num, Red)
 	}
@@ -528,73 +497,27 @@ func (b Board) Invalidity(ignoreRoll bool) string {
 	if b.Roller != Red && b.Roller != White {
 		return "bad Roller"
 	}
-	for pipNumber, point := range b.Pips {
-		seenNoChecker := false
-		for _, v := range point {
-			if seenNoChecker && v != NoChecker {
-				return fmt.Sprintf("NoChecker must be last on pip %d", pipNumber)
-			}
-			if v == NoChecker {
-				seenNoChecker = true
-			}
-		}
+	numWhite, numRed := b.Pips[BarWhitePip].NumWhite(), b.Pips[BarRedPip].NumRed()
+	if b.Pips[BarWhitePip].NumRed() > 0 {
+		return "Red on BarWhite"
 	}
-	numWhite, numRed := 0, 0
-	for _, c := range b.Pips[BarWhitePip] {
-		if c != White && c != NoChecker {
-			return "Red on BarWhite"
-		}
-		if c == White {
-			numWhite++
-		}
+	if b.Pips[BarRedPip].NumWhite() > 0 {
+		return "White on BarRed"
 	}
-	for _, c := range b.Pips[BarRedPip] {
-		if c != Red && c != NoChecker {
-			return "White on BarRed"
-		}
-		if c == Red {
-			numRed++
-		}
+	if b.Pips[BorneOffWhitePip].NumRed() > 0 {
+		return "Red on BorneOffWhitePip"
 	}
-	for _, c := range b.Pips[BorneOffWhitePip] {
-		if c != White && c != NoChecker {
-			return "Red on BorneOffWhitePip"
-		}
-		if c == White {
-			numWhite++
-		}
+	if b.Pips[BorneOffRedPip].NumWhite() > 0 {
+		return "Red on BorneOffRedPip"
 	}
-	for _, c := range b.Pips[BorneOffRedPip] {
-		if c != Red && c != NoChecker {
-			return "Red on BorneOffRedPip"
+	numWhite += b.Pips[BorneOffWhitePip].NumWhite()
+	numRed += b.Pips[BorneOffRedPip].NumRed()
+	for pointNumber := 1; pointNumber < 25; pointNumber++ {
+		if b.Pips[pointNumber] < -15 || b.Pips[pointNumber] > 15 {
+			return "out of range [-15, 15]"
 		}
-		if c == Red {
-			numRed++
-		}
-	}
-	for pointNumber, point := range b.Pips[1:25] {
-		colorSeenYet := false
-		var colorSeen Checker
-		mix := fmt.Sprintf("mix of White and Red on point %d", pointNumber)
-		for _, c := range point {
-			if c == White {
-				numWhite++
-				if colorSeenYet && colorSeen != White {
-					return mix
-				}
-				colorSeenYet = true
-				colorSeen = White
-			} else if c == Red {
-				numRed++
-				if colorSeenYet && colorSeen != Red {
-					return mix
-				}
-				colorSeenYet = true
-				colorSeen = Red
-			} else if c != NoChecker {
-				return "how can a checker be not White and not Red?"
-			}
-		}
+		numWhite += b.Pips[pointNumber].NumWhite()
+		numRed += b.Pips[pointNumber].NumRed()
 	}
 	if numWhite != 15 {
 		return fmt.Sprintf("%d White checkers found, not 15", numWhite)
@@ -622,15 +545,15 @@ func (b *Board) victorMultiplier() int {
 		opponentBorne = BorneOffRedPip
 		homeStart, homeEnd = 19, 24
 	}
-	if b.Pips[opponentBar][0] != NoChecker {
+	if b.Pips[opponentBar].NumCheckers() > 0 {
 		return 3
 	}
 	for x := homeStart; x <= homeEnd; x++ {
-		if b.Pips[x][0] != NoChecker {
+		if b.Pips[x].NumCheckers() > 0 {
 			return 3
 		}
 	}
-	if b.Pips[opponentBorne][0] == NoChecker {
+	if b.Pips[opponentBorne].NumCheckers() == 0 {
 		return 2
 	}
 	return 1
@@ -641,7 +564,7 @@ func (b *Board) victor() (victor Checker, stakes int) {
 	if b.Roller == White {
 		borne = BorneOffWhitePip
 	}
-	if b.Pips[borne][len(b.Pips[borne])-1] != NoChecker {
+	if b.Pips[borne].NumCheckers() == 15 {
 		victor = b.Roller
 		stakes = b.victorMultiplier() * b.Stakes
 		return
@@ -664,40 +587,39 @@ func (c Checker) OtherColor() Checker {
 
 func (b *Board) pipIsBlockedByOpponent(i int) bool {
 	opponent := b.Roller.OtherColor()
-	return b.Pips[i][0] == opponent && b.Pips[i][1] == opponent
+	return b.Pips[i].MadeBy(opponent)
 }
 
 // Returns a Board or nil depending on whether or not that point was open.
 func (b *Board) comeOffTheBar(die Die) *Board {
 	// At the start, Pips[1] is Point{White, White}. If b.Roller is White, then
 	// we come in on the die Point. Else the 25-die point.
-	i := die
+	i := int(die)
+	barPip := BarWhitePip
+	otherPlayersBar := BarRedPip
 	switch b.Roller {
 	case Red:
-		i = 25 - die
+		i = 25 - int(die)
+		barPip = BarRedPip
+		otherPlayersBar = BarWhitePip
 	case White:
 	default:
 		panic("bad b.Roller")
 	}
-	if b.pipIsBlockedByOpponent(int(i)) {
+	if b.pipIsBlockedByOpponent(i) {
 		return nil
 	}
 	result := *b
 	result.Roll = result.Roll.Use(die, &result.RollUsed)
-	if other := b.Roller.OtherColor(); result.Pips[i][0] == other {
-		result.Pips[i][0] = NoChecker
-		otherPlayersBar := BarWhitePip
-		if b.Roller == White {
-			otherPlayersBar = BarRedPip
+	if other := b.Roller.OtherColor(); result.Pips[i].Num(other) > 0 {
+		result.Pips[i].Reset(0, White)
+		err := result.Pips[otherPlayersBar].Add(other)
+		if err != nil {
+			panic(fmt.Sprintf("b=%v b.Pips=%q err=%v other=%v otherPlayersBar=%v", *b, b.Pips, err, other, otherPlayersBar))
 		}
-		result.Pips[otherPlayersBar].Add(other)
 	}
 	result.Pips[i].Add(b.Roller)
-	if b.Roller == Red {
-		result.Pips[BarRedPip].Subtract()
-	} else {
-		result.Pips[BarWhitePip].Subtract()
-	}
+	result.Pips[barPip].Subtract()
 	return &result
 }
 
@@ -722,37 +644,12 @@ func (b *Board) continuationsOffTheBar() (possibilities []*Board) {
 	return
 }
 
-// (for testing) this partially hits -- it does not do anything to the opponent's checkers
-func (b *Board) hit(color Checker, pip int) {
-	if color != Red && color != White {
-		panic("bad color")
-	}
-	if pip < 1 || pip > 24 {
-		panic("bad pip")
-	}
-	if b.Pips[pip][0] != color {
-		panic("cannot hit what is not there")
-	}
-	b.Pips[pip].Subtract()
-	barPip := BarWhitePip
-	if color == Red {
-		barPip = BarRedPip
-	}
-	b.Pips[barPip].Add(color)
-}
-
-func (b *Board) numCheckersRollerHasOnTheBar() (result int) {
+func (b *Board) numCheckersRollerHasOnTheBar() int {
 	barPip := BarWhitePip
 	if b.Roller == Red {
 		barPip = BarRedPip
 	}
-	for _, v := range b.Pips[barPip] {
-		if v == NoChecker {
-			break
-		}
-		result++
-	}
-	return
+	return b.Pips[barPip].NumCheckers()
 }
 
 func (b *Board) canBearOff() bool {
@@ -761,14 +658,14 @@ func (b *Board) canBearOff() bool {
 	}
 	if b.Roller == White {
 		for i := 1; i < 19; i++ {
-			if b.Pips[i][0] == b.Roller {
+			if b.Pips[i].NumWhite() > 0 {
 				return false
 			}
 		}
 		return true
 	}
 	for i := 7; i < 25; i++ {
-		if b.Pips[i][0] == b.Roller {
+		if b.Pips[i].NumRed() > 0 {
 			return false
 		}
 	}
@@ -777,7 +674,7 @@ func (b *Board) canBearOff() bool {
 
 // targetPip is undefined unless can is true
 func (b *Board) canMoveChecker(startPipIndex int, die Die) (targetPip int, can bool) {
-	if b.Pips[startPipIndex][0] != b.Roller || startPipIndex < 1 || startPipIndex > 24 {
+	if b.Pips[startPipIndex].Num(b.Roller) < 1 || startPipIndex < 1 || startPipIndex > 24 {
 		panic("@the disco")
 	}
 	if b.Roller == White {
@@ -787,7 +684,7 @@ func (b *Board) canMoveChecker(startPipIndex int, die Die) (targetPip int, can b
 			goodEnough := true
 			if targetPip != 25 {
 				for i := 19; i < startPipIndex; i++ {
-					if b.Pips[i][0] == b.Roller {
+					if b.Pips[i].Num(b.Roller) > 0 {
 						goodEnough = false
 						break
 					}
@@ -799,7 +696,7 @@ func (b *Board) canMoveChecker(startPipIndex int, die Die) (targetPip int, can b
 			}
 			return
 		}
-		can = b.Pips[targetPip][0] != b.Roller.OtherColor() || b.Pips[targetPip][1] != b.Roller.OtherColor()
+		can = !b.pipIsBlockedByOpponent(targetPip)
 		return
 	}
 	targetPip = startPipIndex - int(die)
@@ -808,7 +705,7 @@ func (b *Board) canMoveChecker(startPipIndex int, die Die) (targetPip int, can b
 		goodEnough := true
 		if targetPip != 0 {
 			for i := 6; i > startPipIndex; i-- {
-				if b.Pips[i][0] == b.Roller {
+				if b.Pips[i].Num(b.Roller) > 0 {
 					goodEnough = false
 					break
 				}
@@ -820,7 +717,7 @@ func (b *Board) canMoveChecker(startPipIndex int, die Die) (targetPip int, can b
 		}
 		return
 	}
-	can = b.Pips[targetPip][0] != b.Roller.OtherColor() || b.Pips[targetPip][1] != b.Roller.OtherColor()
+	can = !b.pipIsBlockedByOpponent(targetPip)
 	return
 }
 
@@ -835,11 +732,11 @@ func (b *Board) quasiLegalPostBarContinuations() (continuations []*Board) {
 	// 12. This does so.
 	for _, die := range remainingDice {
 		for i := 1; i < 25; i++ {
-			if b.Pips[i][0] == b.Roller { // zeroes come only at the end of the array
+			if b.Pips[i].Num(b.Roller) > 0 {
 				if targetPip, can := b.canMoveChecker(i, die); can {
 					next := *b
 					next.Pips[i].Subtract()
-					if other := b.Roller.OtherColor(); next.Pips[targetPip][0] == other {
+					if other := b.Roller.OtherColor(); next.Pips[targetPip].Num(other) > 0 {
 						next.Pips[targetPip].Subtract()
 						bar := BarRedPip
 						if other == White {

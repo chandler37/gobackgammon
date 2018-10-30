@@ -5,27 +5,54 @@ import (
 	"strings"
 )
 
+func (p Point) NumCheckers() int {
+	if p < 0 {
+		return int(-p)
+	}
+	return int(p)
+}
+
+func (p Point) NumWhite() int {
+	if p < 0 {
+		return int(-p)
+	}
+	return 0
+}
+
+func (p Point) NumRed() int {
+	if p > 0 {
+		return int(p)
+	}
+	return 0
+}
+
+func (p Point) Num(player Checker) int {
+	if player == Red {
+		return p.NumRed()
+	}
+	if player != White {
+		panic("bad player")
+	}
+	return p.NumWhite()
+}
+
 // A made point is a Point with two or more Checkers of the same color on
 // it.
-func (p *Point) MadeBy(player Checker) bool {
-	return p[0] == player && p[1] == player
+func (p Point) MadeBy(player Checker) bool {
+	return p.Num(player) >= 2
 }
 
 func (p Point) Equals(q Point) bool {
-	for i, v := range p {
-		if v != q[i] {
-			return false
-		}
-	}
-	return true
+	return p == q
 }
 
 func (p Point) String() string {
 	r := make([]string, 0, 15)
-	for _, v := range p {
-		if v != NoChecker {
-			r = append(r, v.String())
-		}
+	for n := 0; n < p.NumWhite(); n++ {
+		r = append(r, White.String())
+	}
+	for n := 0; n < p.NumRed(); n++ {
+		r = append(r, Red.String())
 	}
 	return strings.Join(r, "")
 }
@@ -33,38 +60,52 @@ func (p Point) String() string {
 // Clears the Point and then places n checkers of the given color (or no color)
 // on it.
 func (p *Point) Reset(n int, checker Checker) {
-	for i, _ := range *p {
-		if i < n {
-			p[i] = checker
-		} else {
-			p[i] = NoChecker
-		}
+	if n < 0 || n > 15 {
+		panic("bad n")
 	}
+	if checker == White {
+		*p = Point(-n)
+		return
+	}
+	*p = Point(n)
 }
 
-func (p *Point) Add(checker Checker) {
-	for i, v := range *p {
-		if v != checker && v != NoChecker {
-			panic(fmt.Sprintf("bad point is %v", *p))
+func (p *Point) Add(checker Checker) error {
+	if checker == White {
+		if p.NumRed() > 0 {
+			return fmt.Errorf("when adding White you must zero first: %d", *p)
 		}
-		if v == NoChecker {
-			p[i] = checker
-			return
-		}
+		*p -= 1
+		return nil
 	}
-	panic("thinko")
+	if p.NumWhite() > 0 {
+		return fmt.Errorf("when adding Red you must zero first: %d", *p)
+	}
+	*p += 1
+	return nil
 }
 
 func (p *Point) Subtract() {
-	index := 14
-	for i, v := range *p {
-		if v == NoChecker {
-			index = i - 1
-			break
-		}
+	if *p == 0 {
+		panic("cannot subtract an empty point")
 	}
-	if index < 0 {
-		panic(fmt.Sprintf("No checkers to remove: %v", *p))
+	if *p < 0 {
+		*p += 1
+		return
 	}
-	p[index] = NoChecker
+	*p -= 1
+}
+
+// Returns a Point with n checkers on it of the given color.
+func NewPoint(n int, color Checker) Point {
+	if n < 0 || n > 15 {
+		panic("bad n")
+	}
+	if color != White && color != Red {
+		panic("bad color")
+	}
+	if color == White {
+		return Point(-n)
+	}
+	return Point(n)
 }

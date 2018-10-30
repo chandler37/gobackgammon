@@ -68,12 +68,10 @@ func BenchmarkComingOffTheBar(b *testing.B) {
 		board := New(false)
 		board.Roller = White
 		board.Roll = Roll{6, 6, 6, 6}
-		for i := 0; i < 5; i++ {
-			board.hit(White, 19)
-		}
-		for i := 0; i < 4; i++ {
-			board.hit(Red, 6)
-		}
+		board.Pips[19].Reset(0, White)
+		board.Pips[BarWhitePip].Reset(5, White)
+		board.Pips[6].Reset(1, Red)
+		board.Pips[BarRedPip].Reset(4, Red)
 		nextBoards := board.continuationsOffTheBar()
 		if len(nextBoards) != 1 {
 			panic(fmt.Sprintf("nextBoards is %v", nextBoards))
@@ -117,38 +115,33 @@ func TestNewAndStringerAndInvalidity(t *testing.T) {
 	if bs := fmt.Sprintf("%v", b); bs != "{r to play   63; !dbl; 1:WW 2: 3: 4: 5: 6:rrrrr 7: 8:rrr 9: 10: 11: 12:WWWWW 13:rrrrr 14: 15: 16: 17:WWW 18: 19:WWWWW 20: 21: 22: 23: 24:rr}" {
 		t.Errorf("Bad initial board %v", bs)
 	}
-	b.Pips[BarWhitePip] = Point{White}
+	b.Pips[BarWhitePip].Reset(1, White)
 	if i := b.Invalidity(EnforceRollValidity); i != "16 White checkers found, not 15" {
 		t.Errorf("should be invalid though: %v", i)
 	}
-	if !b.Pips[1].Equals(Point{White, White}) {
+	if !b.Pips[1].Equals(NewPoint(2, White)) {
 		t.Errorf("b.Pips[1] is %v", b.Pips[1])
 	}
-	if b.Pips[1].Equals(Point{}) || b.Pips[1].Equals(Point{White}) || b.Pips[1].Equals(Point{Red, Red}) {
+	if b.Pips[1].Equals(NewPoint(0, White)) || b.Pips[1].Equals(NewPoint(1, White)) || b.Pips[1].Equals(NewPoint(2, Red)) {
 		t.Errorf("b.Pips[1] should not equal that")
 	}
-	b.Pips[1] = Point{White}
+	b.Pips[1].Reset(1, White)
 	if i := b.Invalidity(EnforceRollValidity); i != "" {
 		t.Errorf("should be valid: %v", i)
 	}
 	if bs := fmt.Sprintf("%v", b); bs != "{r to play   63; !dbl; 1:W 2: 3: 4: 5: 6:rrrrr 7: 8:rrr 9: 10: 11: 12:WWWWW 13:rrrrr 14: 15: 16: 17:WWW 18: 19:WWWWW 20: 21: 22: 23: 24:rr, W on bar}" {
 		t.Errorf("Bad b.String() %v", bs)
 	}
-	b.Pips[BarRedPip] = Point{Red, Red}
-	b.Pips[24] = Point{}
-	b.Pips[BorneOffWhitePip] = Point{White, White}
-	q := 0
-	for _, x := range b.Pips[12] {
-		if x != NoChecker {
-			q++
-		}
+	b.Pips[BarRedPip].Reset(2, Red)
+	b.Pips[24].Reset(0, Red)
+	b.Pips[BorneOffWhitePip].Reset(2, White)
+	q := b.Pips[12].NumCheckers()
+	if q != 5 {
+		t.Errorf("%v != 5", q)
 	}
-	if l := q; l != 5 {
-		t.Errorf("%v != 5", l)
-	}
-	b.Pips[12] = Point{White, White, White}
-	b.Pips[BorneOffRedPip] = Point{Red, Red, Red}
-	b.Pips[13] = Point{Red, Red}
+	b.Pips[12].Reset(3, White)
+	b.Pips[BorneOffRedPip].Reset(3, Red)
+	b.Pips[13].Reset(2, Red)
 	if i := b.Invalidity(EnforceRollValidity); i != "" {
 		t.Errorf("validity %v", i)
 	}
@@ -421,12 +414,12 @@ func TestLegalContinuations(t *testing.T) {
 				board.Roller = White
 				board.Roll = Roll{6, 6, 6, 6}
 				board.Pips = Points28{}
-				board.Pips[18] = Point{White, White, White, White}
-				board.Pips[19] = Point{White, White, White, White}
-				board.Pips[20] = Point{White, White, White, White}
-				board.Pips[21] = Point{White, White, White}
-				board.Pips[24] = Point{Red, Red}
-				board.Pips[BorneOffRedPip] = Point{Red, Red, Red, Red, Red, Red, Red, Red, Red, Red, Red, Red, Red}
+				board.Pips[18].Reset(4, White)
+				board.Pips[19].Reset(4, White)
+				board.Pips[20].Reset(4, White)
+				board.Pips[21].Reset(3, White)
+				board.Pips[24].Reset(2, Red)
+				board.Pips[BorneOffRedPip].Reset(13, Red)
 				// {W to play 6666; !dbl; 1:WW 2: 3: 4: 5: 6:rrrrr 7: 8:rrr 9: 10: 11: 12:WWWWW 13:rrrrr 14: 15: 16: 17:WWW 18: 19:WWWWW 20: 21: 22: 23: 24:rr}
 			},
 			"{W to play 6666; !dbl; 1: 2: 3: 4: 5: 6: 7: 8: 9: 10: 11: 12: 13: 14: 15: 16: 17: 18:WWWW 19:WWWW 20:WWWW 21:WWW 22: 23: 24:rr, 13 r off}",
@@ -438,12 +431,12 @@ func TestLegalContinuations(t *testing.T) {
 				board.Roller = Red
 				board.Roll = Roll{6, 6, 6, 6}
 				board.Pips = Points28{}
-				board.Pips[7] = Point{Red, Red, Red, Red}
-				board.Pips[6] = Point{Red, Red, Red, Red}
-				board.Pips[5] = Point{Red, Red, Red, Red}
-				board.Pips[4] = Point{Red, Red, Red}
-				board.Pips[1] = Point{White, White}
-				board.Pips[BorneOffWhitePip] = Point{White, White, White, White, White, White, White, White, White, White, White, White, White}
+				board.Pips[7].Reset(4, Red)
+				board.Pips[6].Reset(4, Red)
+				board.Pips[5].Reset(4, Red)
+				board.Pips[4].Reset(3, Red)
+				board.Pips[1].Reset(2, White)
+				board.Pips[BorneOffWhitePip].Reset(13, White)
 				// {W to play 6666; !dbl; 1:WW 2: 3: 4: 5: 6:rrrrr 7: 8:rrr 9: 10: 11: 12:WWWWW 13:rrrrr 14: 15: 16: 17:WWW 18: 19:WWWWW 20: 21: 22: 23: 24:rr}
 			},
 			"{r to play 6666; !dbl; 1:WW 2: 3: 4:rrr 5:rrrr 6:rrrr 7:rrrr 8: 9: 10: 11: 12: 13: 14: 15: 16: 17: 18: 19: 20: 21: 22: 23: 24:, 13 W off}",
@@ -746,7 +739,7 @@ func TestLegalContinuations(t *testing.T) {
 
 func assertValidity(board *Board, t *testing.T) {
 	if i := board.Invalidity(EnforceRollValidity); i != "" {
-		t.Fatalf("invalidity: %v in board %v", i, board)
+		panic(fmt.Sprintf("invalidity: %v in board %v", i, board))
 	}
 }
 
@@ -762,7 +755,8 @@ func TestComingOffTheBar(t *testing.T) {
 			func(board *Board) {
 				board.Roller = White
 				board.Roll = Roll{6, 5} // 5 is empty but 6 is blocked by 5 Red
-				board.hit(White, 1)
+				board.Pips[1].Reset(1, White)
+				board.Pips[BarWhitePip].Add(White)
 			},
 			"{W to play   65; !dbl; 1:W 2: 3: 4: 5: 6:rrrrr 7: 8:rrr 9: 10: 11: 12:WWWWW 13:rrrrr 14: 15: 16: 17:WWW 18: 19:WWWWW 20: 21: 22: 23: 24:rr, W on bar}",
 			[]string{
@@ -780,7 +774,8 @@ func TestComingOffTheBar(t *testing.T) {
 			func(board *Board) {
 				board.Roller = White
 				board.Roll = Roll{6, 6, 6, 6}
-				board.hit(White, 1)
+				board.Pips[1].Reset(1, White)
+				board.Pips[BarWhitePip].Add(White)
 			},
 			"{W to play 6666; !dbl; 1:W 2: 3: 4: 5: 6:rrrrr 7: 8:rrr 9: 10: 11: 12:WWWWW 13:rrrrr 14: 15: 16: 17:WWW 18: 19:WWWWW 20: 21: 22: 23: 24:rr, W on bar}",
 			nil},
@@ -789,9 +784,8 @@ func TestComingOffTheBar(t *testing.T) {
 			func(board *Board) {
 				board.Roller = White
 				board.Roll = Roll{1, 1, 1, 1}
-				for i := 0; i < 5; i++ {
-					board.hit(White, 19)
-				}
+				board.Pips[19].Reset(0, White)
+				board.Pips[BarWhitePip].Reset(5, White)
 			},
 			"{W to play 1111; !dbl; 1:WW 2: 3: 4: 5: 6:rrrrr 7: 8:rrr 9: 10: 11: 12:WWWWW 13:rrrrr 14: 15: 16: 17:WWW 18: 19: 20: 21: 22: 23: 24:rr, WWWWW on bar}",
 			[]string{"{W after playing 1111; !dbl; 1:WWWWWW 2: 3: 4: 5: 6:rrrrr 7: 8:rrr 9: 10: 11: 12:WWWWW 13:rrrrr 14: 15: 16: 17:WWW 18: 19: 20: 21: 22: 23: 24:rr, W on bar}"}},
@@ -800,9 +794,8 @@ func TestComingOffTheBar(t *testing.T) {
 			func(board *Board) {
 				board.Roller = White
 				board.Roll = Roll{1, 1, 1, 1}
-				for i := 0; i < 2; i++ {
-					board.hit(White, 19)
-				}
+				board.Pips[19].Reset(3, White)
+				board.Pips[BarWhitePip].Reset(2, White)
 			},
 			"{W to play 1111; !dbl; 1:WW 2: 3: 4: 5: 6:rrrrr 7: 8:rrr 9: 10: 11: 12:WWWWW 13:rrrrr 14: 15: 16: 17:WWW 18: 19:WWW 20: 21: 22: 23: 24:rr, WW on bar}",
 			[]string{"{W to play   11 after playing   11; !dbl; 1:WWWW 2: 3: 4: 5: 6:rrrrr 7: 8:rrr 9: 10: 11: 12:WWWWW 13:rrrrr 14: 15: 16: 17:WWW 18: 19:WWW 20: 21: 22: 23: 24:rr}"}},
@@ -811,9 +804,8 @@ func TestComingOffTheBar(t *testing.T) {
 			func(board *Board) {
 				board.Roller = White
 				board.Roll = Roll{1, 1, 1, 1}
-				for i := 0; i < 3; i++ {
-					board.hit(White, 19)
-				}
+				board.Pips[19].Reset(2, White)
+				board.Pips[BarWhitePip].Reset(3, White)
 			},
 			"{W to play 1111; !dbl; 1:WW 2: 3: 4: 5: 6:rrrrr 7: 8:rrr 9: 10: 11: 12:WWWWW 13:rrrrr 14: 15: 16: 17:WWW 18: 19:WW 20: 21: 22: 23: 24:rr, WWW on bar}",
 			[]string{"{W to play    1 after playing  111; !dbl; 1:WWWWW 2: 3: 4: 5: 6:rrrrr 7: 8:rrr 9: 10: 11: 12:WWWWW 13:rrrrr 14: 15: 16: 17:WWW 18: 19:WW 20: 21: 22: 23: 24:rr}"}},
@@ -822,12 +814,10 @@ func TestComingOffTheBar(t *testing.T) {
 			func(board *Board) {
 				board.Roller = White
 				board.Roll = Roll{6, 6, 6, 6}
-				for i := 0; i < 5; i++ {
-					board.hit(White, 19)
-				}
-				for i := 0; i < 4; i++ {
-					board.hit(Red, 6)
-				}
+				board.Pips[19].Reset(0, White)
+				board.Pips[BarWhitePip].Reset(5, White)
+				board.Pips[6].Reset(1, Red)
+				board.Pips[BarRedPip].Reset(4, Red)
 			},
 			"{W to play 6666; !dbl; 1:WW 2: 3: 4: 5: 6:r 7: 8:rrr 9: 10: 11: 12:WWWWW 13:rrrrr 14: 15: 16: 17:WWW 18: 19: 20: 21: 22: 23: 24:rr, WWWWW on bar, rrrr on bar}",
 			[]string{"{W after playing 6666; !dbl; 1:WW 2: 3: 4: 5: 6:WWWW 7: 8:rrr 9: 10: 11: 12:WWWWW 13:rrrrr 14: 15: 16: 17:WWW 18: 19: 20: 21: 22: 23: 24:rr, W on bar, rrrrr on bar}"}},
@@ -836,10 +826,10 @@ func TestComingOffTheBar(t *testing.T) {
 			func(board *Board) {
 				board.Roller = White
 				board.Roll = Roll{6, 5}
-				board.hit(White, 1)
-				for i := 0; i < 4; i++ {
-					board.hit(Red, 6)
-				}
+				board.Pips[1].Reset(1, White)
+				board.Pips[BarWhitePip].Reset(1, White)
+				board.Pips[6].Reset(1, Red)
+				board.Pips[BarRedPip].Reset(4, Red)
 			},
 			"{W to play   65; !dbl; 1:W 2: 3: 4: 5: 6:r 7: 8:rrr 9: 10: 11: 12:WWWWW 13:rrrrr 14: 15: 16: 17:WWW 18: 19:WWWWW 20: 21: 22: 23: 24:rr, W on bar, rrrr on bar}",
 			[]string{
@@ -850,7 +840,9 @@ func TestComingOffTheBar(t *testing.T) {
 	for exNum, ex := range examples {
 		board := New(true)
 		ex.Initializer(board)
-		assertValidity(board, t)
+		if iv := board.Invalidity(EnforceRollValidity); iv != "" {
+			t.Fatalf("exNum=%d ex=%v iv=%v", exNum, ex, iv)
+		}
 		if y := board.String(); y != ex.InitializerCheck {
 			t.Fatalf(
 				"bad initializer %d: expected %v but got %v",
@@ -951,7 +943,7 @@ func TestRollEquals(t *testing.T) {
 }
 
 func TestBoardMemoryFootprint(t *testing.T) {
-	if s := unsafe.Sizeof(*New(true)); s != 480 {
+	if s := unsafe.Sizeof(*New(true)); s != 88 {
 		pair := runtime.GOOS + "-" + runtime.GOARCH
 		t.Fatalf(
 			"sizeof(Board) on %s is %d. This is not necessarily a problem, but you run the benchmarks again with `make bench`",

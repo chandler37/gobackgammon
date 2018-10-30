@@ -73,7 +73,7 @@ func playerConservative(choices []*brd.Board) []brd.AnalyzedBoard {
 		nextRound,
 		func(b *brd.Board) (numBlots int64) {
 			for _, p := range b.Pips[1:25] {
-				if p[0] == b.Roller && p[1] == brd.NoChecker {
+				if p.Num(b.Roller) == 1 {
 					numBlots++
 				}
 			}

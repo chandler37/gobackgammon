@@ -26,39 +26,24 @@ func PlayerRacer(choices []*brd.Board) []brd.AnalyzedBoard {
 			// continutations.
 			if b.Roller == brd.White {
 				for i := 1; i < 7; i++ {
-					for _, c := range b.Pips[i] {
-						if c == brd.White {
-							score += int64(7 - i)
-						}
-					}
+					score += int64(7-i) * int64(b.Pips[i].NumWhite())
 				}
 				return
 			}
 			for i := 19; i < 25; i++ {
-				for _, c := range b.Pips[i] {
-					if c == brd.Red {
-						score += int64(i - 18)
-					}
-				}
+				score += int64(i-18) * int64(b.Pips[i].NumRed())
 			}
 			return
 		})
 	maximizer(
 		"maxMyCheckersBorneOff",
 		nextRound,
-		func(b *brd.Board) (result int64) {
+		func(b *brd.Board) int64 {
 			pip := brd.BorneOffRedPip
 			if b.Roller == brd.White {
 				pip = brd.BorneOffWhitePip
 			}
-			for _, c := range b.Pips[pip] {
-				if c != brd.NoChecker {
-					result++
-				} else {
-					break
-				}
-			}
-			return
+			return int64(b.Pips[pip].NumCheckers())
 		})
 	maximizer(
 		"maxMyCheckersAtHome",
