@@ -21,20 +21,7 @@ func PlayerRacer(choices []*brd.Board) []brd.AnalyzedBoard {
 	minimizer(
 		"minProbabilityOfGettingBackgammoned",
 		nextRound,
-		func(b *brd.Board) (score int64) {
-			// The number of checkers on the bar is a constant for legal
-			// continutations.
-			if b.Roller == brd.White {
-				for i := 1; i < 7; i++ {
-					score += int64(7-i) * int64(b.Pips[i].NumWhite())
-				}
-				return
-			}
-			for i := 19; i < 25; i++ {
-				score += int64(i-18) * int64(b.Pips[i].NumRed())
-			}
-			return
-		})
+		probabilityOfGettingBackgammoned)
 	maximizer(
 		"maxMyCheckersBorneOff",
 		nextRound,

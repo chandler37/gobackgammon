@@ -65,6 +65,10 @@ func playerConservative(choices []*brd.Board) []brd.AnalyzedBoard {
 			return int64(b.BlotLiability(b.Roller, false))
 		})
 	minimizer(
+		"minProbabilityOfGettingBackgammoned",
+		nextRound,
+		probabilityOfGettingBackgammoned)
+	minimizer(
 		"minMyBlots",
 		nextRound,
 		func(b *brd.Board) (numBlots int64) {

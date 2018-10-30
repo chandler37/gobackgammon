@@ -84,8 +84,8 @@ func TestAiPlayGame(t *testing.T) {
 			Red,
 			1,
 			"Score{Goal:0,W:0,r:1,Crawford on,inactive}",
-			50,
-			"{r to play    3 after playing    5; !dbl; 1: 2: 3: 4: 5: 6: 7: 8: 9: 10: 11: 12: 13: 14: 15: 16: 17: 18: 19: 20: 21: 22:WWWWWW 23:WWW 24:WWWWW, 1 W off, 15 r off, Score{Goal:0,W:0,r:1,Crawford on,inactive}}",
+			62,
+			"{r after playing   42; !dbl; 1: 2: 3: 4: 5: 6: 7: 8: 9: 10: 11: 12: 13: 14: 15: 16: 17: 18: 19: 20: 21: 22: 23: 24:WWW, 12 W off, 15 r off, Score{Goal:0,W:0,r:1,Crawford on,inactive}}",
 			playerConservative,
 			func(state interface{}, b *brd.Board) {
 				if iv := b.Invalidity(brd.IgnoreRollValidity); iv != "" {
@@ -175,13 +175,30 @@ func TestPlayerConservative(t *testing.T) {
 				b.Pips[24].Reset(1, Red)
 				b.Pips[23].Reset(7, White)
 				b.Pips[brd.BorneOffWhitePip].Reset(8, White)
-				// TODO(chandler37): Eliminate this mistake (moving the 3
-				// instead of the 19), except when it's not a mistake
-				// (tournament play where a loss of Stakes vs. a loss of
-				// 3*Stakes is identically bad as regards the tournament
-				// outcome)
 			},
-			"{r after playing   51; !dbl; 1:rrrrrr 2:rrrrrrr 3: 4: 5: 6: 7: 8: 9:r 10: 11: 12: 13: 14: 15: 16: 17: 18: 19:r 20: 21: 22: 23:WWWWWWW 24:, 8 W off}",
+			"{r after playing   51; !dbl; 1:rrrrrr 2:rrrrrr 3:r 4: 5: 6: 7: 8: 9:r 10: 11: 12: 13: 14: 15: 16: 17: 18:r 19: 20: 21: 22: 23:WWWWWWW 24:, 8 W off}",
+			nil},
+		example{
+			func(b *brd.Board) {
+				// does not avoid backgammons if a single-stakes loss is just
+				// as bad in the tournament: {r to play 51; !dbl; 1:rrrrrr
+				// 2:rrrrrr 3:r 4: 5: 6: 7: 8: 9:r 10: 11: 12: 13: 14: 15: 16:
+				// 17: 18: 19: 20: 21: 22: 23:WWWWWWW 24:r, 8 W off}
+				//
+				// TODO(chandler37): Change this to keep a checker on point 24.
+				b.Roller = Red
+				b.Roll = brd.Roll{5, 1}
+				b.Pips = brd.Points28{}
+				b.Pips[1].Reset(6, Red)
+				b.Pips[2].Reset(6, Red)
+				b.Pips[3].Reset(1, Red)
+				b.Pips[9].Reset(1, Red)
+				b.Pips[24].Reset(1, Red)
+				b.Pips[23].Reset(7, White)
+				b.Pips[brd.BorneOffWhitePip].Reset(8, White)
+				b.MatchScore.Goal = 1
+			},
+			"{r after playing   51; !dbl; 1:rrrrrr 2:rrrrrr 3:r 4: 5: 6: 7: 8: 9:r 10: 11: 12: 13: 14: 15: 16: 17: 18:r 19: 20: 21: 22: 23:WWWWWWW 24:, 8 W off, Score{Goal:1,W:0,r:0,Crawford on,inactive}}",
 			nil},
 		example{
 			func(b *brd.Board) {

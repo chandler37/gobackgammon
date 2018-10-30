@@ -161,3 +161,29 @@ func minmaximizer(label label, choices []brd.AnalyzedBoard, f func(*brd.Board) i
 	result = append(result, remainder...)
 	copy(choices, result)
 }
+
+// TODO(chandler37): Add heuristics that avoid gammons, too, but aware of
+// tournament play and the Jacoby rule.
+func probabilityOfGettingBackgammoned(b *brd.Board) (score int64) {
+	if b.MatchScore.Goal > 0 {
+		otherPlayerScore := b.MatchScore.RedScore
+		if b.Roller == brd.Red {
+			otherPlayerScore = b.MatchScore.WhiteScore
+		}
+		if otherPlayerScore+1 > b.MatchScore.Goal {
+			return -1 // a backgammon is the same as a single-stakes loss
+		}
+	}
+	// The number of checkers on the bar is a constant for legal
+	// continutations.
+	if b.Roller == brd.White {
+		for i := 1; i < 7; i++ {
+			score += int64(7-i) * int64(b.Pips[i].NumWhite())
+		}
+		return
+	}
+	for i := 19; i < 25; i++ {
+		score += int64(i-18) * int64(b.Pips[i].NumRed())
+	}
+	return
+}
