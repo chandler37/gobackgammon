@@ -42,10 +42,6 @@ func (p Point) MadeBy(player Checker) bool {
 	return p.Num(player) >= 2
 }
 
-func (p Point) Equals(q Point) bool {
-	return p == q
-}
-
 func (p Point) String() string {
 	r := make([]string, 0, 15)
 	for n := 0; n < p.NumWhite(); n++ {

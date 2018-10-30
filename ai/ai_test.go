@@ -15,33 +15,31 @@ const (
 	White = brd.White
 )
 
-func BenchmarkPlayGameTimesTenConservativeRandomlySeeded(b *testing.B) {
+func BenchmarkPlayGameConservativeRandomlySeeded(b *testing.B) {
 	rand.Seed(time.Now().UnixNano())
-	helpBenchmarkPlayGameTimesTenConservative(b)
+	helpBenchmarkPlayGameConservative(b)
 }
 
-func BenchmarkPlayGameTimesTenConservativeReproduciblySeeded(b *testing.B) {
+func BenchmarkPlayGameConservativeReproduciblySeeded(b *testing.B) {
 	rand.Seed(37)
-	helpBenchmarkPlayGameTimesTenConservative(b)
+	helpBenchmarkPlayGameConservative(b)
 }
 
-func helpBenchmarkPlayGameTimesTenConservative(b *testing.B) {
+func helpBenchmarkPlayGameConservative(b *testing.B) {
 	numBoards, numRedWins, numWhiteWins, numBackgammons := 0, 0, 0, 0
 	for n := 0; n < b.N; n++ {
-		for nn := 0; nn < 10; nn++ { // without this loop you'll have to run 'go test' many times to get a good number because the variance is large
-			logger := func(_ interface{}, b *brd.Board) {
-				numBoards++
-			}
-			chooser := playerConservative
-			victor, stakes, _ := brd.New(false).PlayGame(struct{}{}, chooser, logger, nil, nil)
-			if victor == White {
-				numWhiteWins++
-			} else {
-				numRedWins++
-			}
-			if stakes == 3 {
-				numBackgammons++
-			}
+		logger := func(_ interface{}, b *brd.Board) {
+			numBoards++
+		}
+		chooser := playerConservative
+		victor, stakes, _ := brd.New(false).PlayGame(struct{}{}, chooser, logger, nil, nil)
+		if victor == White {
+			numWhiteWins++
+		} else {
+			numRedWins++
+		}
+		if stakes == 3 {
+			numBackgammons++
 		}
 	}
 	b.Logf(

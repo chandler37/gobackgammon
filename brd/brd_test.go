@@ -119,10 +119,10 @@ func TestNewAndStringerAndInvalidity(t *testing.T) {
 	if i := b.Invalidity(EnforceRollValidity); i != "16 White checkers found, not 15" {
 		t.Errorf("should be invalid though: %v", i)
 	}
-	if !b.Pips[1].Equals(NewPoint(2, White)) {
+	if b.Pips[1] != NewPoint(2, White) {
 		t.Errorf("b.Pips[1] is %v", b.Pips[1])
 	}
-	if b.Pips[1].Equals(NewPoint(0, White)) || b.Pips[1].Equals(NewPoint(1, White)) || b.Pips[1].Equals(NewPoint(2, Red)) {
+	if b.Pips[1] == NewPoint(0, White) || b.Pips[1] == NewPoint(1, White) || b.Pips[1] == NewPoint(2, Red) {
 		t.Errorf("b.Pips[1] should not equal that")
 	}
 	b.Pips[1].Reset(1, White)

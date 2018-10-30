@@ -342,17 +342,8 @@ func (b *Board) LegalContinuations() []*Board {
 	return results
 }
 
-func (x Points28) Equals(y Points28) bool {
-	for i, v := range x {
-		if !v.Equals(y[i]) {
-			return false
-		}
-	}
-	return true
-}
-
 func (b *Board) Equals(o Board) bool {
-	if !b.Pips.Equals(o.Pips) {
+	if b.Pips != o.Pips {
 		return false
 	}
 	if !b.MatchScore.Equals(o.MatchScore) {
