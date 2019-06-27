@@ -374,7 +374,7 @@ func parseCompactPoint(s string) (int, brd.Checker, error) {
 		return 1, color, nil
 	}
 	k, err := strconv.Atoi(s[1:len(s)])
-	if err != nil || k < 1 {
+	if err != nil || k < 1 || k > 15 {
 		return 0, brd.NoChecker, fmt.Errorf("bad point %v", s)
 	}
 	return k, color, nil

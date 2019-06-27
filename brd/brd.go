@@ -524,7 +524,7 @@ const (
 	EnforceRollValidity = !IgnoreRollValidity
 )
 
-func (b Board) Invalidity(ignoreRoll bool) string {
+func (b *Board) Invalidity(ignoreRoll bool) string {
 	if !ignoreRoll {
 		if i := b.Roll.invalidity(); i != "" {
 			return fmt.Sprintf("Invalid roll: %s", i)
