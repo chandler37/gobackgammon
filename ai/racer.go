@@ -32,6 +32,8 @@ func PlayerRacer(choices []*brd.Board) []brd.AnalyzedBoard {
 			}
 			return int64(b.Pips[pip].NumCheckers())
 		})
+	// TODO(chandler37): Care about the pip count of not-at-home checkers. See
+	// http://localhost:8000/game?s=qlYqKlWyUjIxJDKkioxgQQVhGcNZJnCWKZxlBmdBvGgM92O4CdyT4XBPQgXBIWSqVAsIAAD__w&t=
 	maximizer(
 		"maxMyCheckersAtHome",
 		nextRound,
@@ -47,3 +49,7 @@ func PlayerRacer(choices []*brd.Board) []brd.AnalyzedBoard {
 	shuffle(nextRound)
 	return nextRound
 }
+
+// TODO(chandler37): Fix the following bug: it thought there were two choices
+// at the end:
+// http://localhost:8000/game?s=qlYqKlWyUjIxxBpSRfCQMjSGhVWRESyMimBhBBECWVpkAnddONx14QjXmSnVAgIAAP__&t=

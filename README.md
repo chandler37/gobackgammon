@@ -30,3 +30,19 @@ Monte-Carlo simulations to improve the AI.
 it takes to have ai.MakePlayerConservative(0, nil) play a game against
 itself. We have `make bench` right now to give us an idea of performance, but
 it seems like the variance is surprisingly high.
+
+
+## What do I type?
+
+Don't type anything; instead, start with
+https://github.com/chandler37/gobackgammond which has a webserver to help
+visualize the code in this module.
+
+But if you really want to modify this module:
+- read ./Makefile
+- install Go
+  - MacOS? Run `brew install go` (see https://brew.sh/) to install golang. If
+    your golang is out of date, `brew upgrade go`.
+- run 'make check bench`
+- publish a new git tag for a new version, say v1.m.p
+- change https://github.com/chandler37/gobackgammond go.mod to reference v1.m.p and run `make clean srv`
