@@ -44,5 +44,6 @@ But if you really want to modify this module:
   - MacOS? Run `brew install go` (see https://brew.sh/) to install golang. If
     your golang is out of date, `brew upgrade go`.
 - run 'make check bench`
-- publish a new git tag for a new version, say v1.m.p
-- change https://github.com/chandler37/gobackgammond go.mod to reference v1.m.p and run `make clean srv`
+- publish a new git tag for a new version, say `v1.m.p`
+- change https://github.com/chandler37/gobackgammond files `go.mod` and
+  `go.sum` to reference `v1.m.p` and run `make clean srv`
